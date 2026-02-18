@@ -476,7 +476,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 6.2 System Notifications (`internal/notify`)
+### 6.2 System Notifications (`internal/notify`) ✅
 
 **Problem**: New services appear silently; users only notice via dashboard.
 
