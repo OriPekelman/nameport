@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -9,6 +10,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -30,7 +32,15 @@ type Service struct {
 	ExePath    string
 	Cwd        string
 	Args       []string
+	Group      string // Service group for visual grouping
+	UseTLS     bool
 	Proxy      *httputil.ReverseProxy
+}
+
+// ServiceGroup represents a group of related services for dashboard display
+type ServiceGroup struct {
+	Name     string     // Group name (e.g. "ollama")
+	Services []*Service // Services in this group
 }
 
 // Server manages the discovery and proxying of local services
@@ -84,6 +94,10 @@ func main() {
 	// Load existing services into generator to avoid name collisions
 	for _, record := range store.List() {
 		srv.generator.GenerateName(record.ExePath, "", record.Args) // Mark name as used
+		// Backfill group for records that don't have one yet
+		if record.Group == "" {
+			record.Group = naming.ExtractGroup(record.Name)
+		}
 		srv.services[record.Name] = &Service{
 			ID:         record.ID,
 			Name:       record.Name,
@@ -93,6 +107,8 @@ func main() {
 			ExePath:    record.ExePath,
 			Cwd:        "",
 			Args:       record.Args,
+			Group:      record.Group,
+			UseTLS:     record.UseTLS,
 			Proxy:      nil, // Will be created on first use
 		}
 	}
@@ -157,10 +173,12 @@ func (s *Server) discover() {
 			continue
 		}
 
-		// Skip non-HTTP services (check if actually HTTP)
-		if !probe.IsHTTP("127.0.0.1", listener.Port) {
+		// Detect protocol (HTTP or HTTPS)
+		proto := probe.DetectProtocol("127.0.0.1", listener.Port)
+		if proto == probe.ProtoNone {
 			continue
 		}
+		useTLS := proto == probe.ProtoHTTPS
 
 		// Compute identity hash
 		id := naming.ComputeIdentityHash(listener.ExePath, listener.Args)
@@ -178,6 +196,10 @@ func (s *Server) discover() {
 			}
 			if existing.PID != listener.PID {
 				existing.PID = listener.PID
+				needsSave = true
+			}
+			if existing.UseTLS != useTLS {
+				existing.UseTLS = useTLS
 				needsSave = true
 			}
 			if !existing.IsActive {
@@ -200,6 +222,10 @@ func (s *Server) discover() {
 				svc.Port = listener.Port
 				svc.PID = listener.PID
 				svc.Cwd = listener.Cwd
+				if svc.UseTLS != useTLS {
+					svc.UseTLS = useTLS
+					svc.Proxy = nil // Reset proxy so it gets recreated with correct scheme
+				}
 			}
 			s.mu.Unlock()
 			continue
@@ -220,6 +246,8 @@ func (s *Server) discover() {
 			IsActive:    true,
 			LastSeen:    now,
 			Keep:        false,
+			Group:       naming.ExtractGroup(name),
+			UseTLS:      useTLS,
 		}
 
 		// Save to store
@@ -239,11 +267,17 @@ func (s *Server) discover() {
 			ExePath:    listener.ExePath,
 			Cwd:        listener.Cwd,
 			Args:       listener.Args,
+			Group:      record.Group,
+			UseTLS:     useTLS,
 		}
 		s.mu.Unlock()
 
 		seenNames[name] = true
-		log.Printf("New service: %s -> 127.0.0.1:%d (%s)", name, listener.Port, listener.ExePath)
+		scheme := "http"
+		if useTLS {
+			scheme = "https"
+		}
+		log.Printf("New service: %s -> %s://127.0.0.1:%d (%s)", name, scheme, listener.Port, listener.ExePath)
 
 		if err := s.notifyManager.ServiceDiscovered(name, listener.Port); err != nil {
 			log.Printf("Notification error: %v", err)
@@ -295,7 +329,11 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Create proxy on first use
 	if service.Proxy == nil {
-		targetURL := fmt.Sprintf("http://%s:%d", service.TargetHost, service.Port)
+		scheme := "http"
+		if service.UseTLS {
+			scheme = "https"
+		}
+		targetURL := fmt.Sprintf("%s://%s:%d", scheme, service.TargetHost, service.Port)
 		target, err := url.Parse(targetURL)
 		if err != nil {
 			http.Error(w, "Invalid target URL", http.StatusInternalServerError)
@@ -303,6 +341,11 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		service.Proxy = httputil.NewSingleHostReverseProxy(target)
+		if service.UseTLS {
+			service.Proxy.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+		}
 		// Custom error handler
 		service.Proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 			log.Printf("Proxy error for %s: %v", host, err)
@@ -322,6 +365,14 @@ func (s *Server) serveDashboard(w http.ResponseWriter, r *http.Request) {
 	s.serveDashboardWithError(w, r, "")
 }
 
+// serviceGroup returns the effective group for a service
+func serviceGroup(svc *Service) string {
+	if svc.Group != "" {
+		return svc.Group
+	}
+	return naming.ExtractGroup(svc.Name)
+}
+
 // serveDashboardWithError renders the admin dashboard with an optional error message
 func (s *Server) serveDashboardWithError(w http.ResponseWriter, r *http.Request, errorMsg string) {
 	s.mu.RLock()
@@ -331,12 +382,43 @@ func (s *Server) serveDashboardWithError(w http.ResponseWriter, r *http.Request,
 	}
 	s.mu.RUnlock()
 
+	// Sort services by group then name for consistent display
+	sort.Slice(services, func(i, j int) bool {
+		gi := serviceGroup(services[i])
+		gj := serviceGroup(services[j])
+		if gi != gj {
+			return gi < gj
+		}
+		return services[i].Name < services[j].Name
+	})
+
+	// Build groups for display
+	groupMap := make(map[string][]*Service)
+	groupOrder := make([]string, 0)
+	for _, svc := range services {
+		group := serviceGroup(svc)
+		if _, exists := groupMap[group]; !exists {
+			groupOrder = append(groupOrder, group)
+		}
+		groupMap[group] = append(groupMap[group], svc)
+	}
+
+	groups := make([]ServiceGroup, 0, len(groupOrder))
+	for _, name := range groupOrder {
+		groups = append(groups, ServiceGroup{
+			Name:     name,
+			Services: groupMap[name],
+		})
+	}
+
 	data := struct {
 		Services []*Service
+		Groups   []ServiceGroup
 		ErrorMsg string
 		Hostname string
 	}{
 		Services: services,
+		Groups:   groups,
 		ErrorMsg: errorMsg,
 		Hostname: r.Host,
 	}
@@ -382,11 +464,20 @@ func (s *Server) handleAPIServices(w http.ResponseWriter, r *http.Request) {
 
 		// Quick health check
 		client := &http.Client{Timeout: 2 * time.Second}
+		if svc.UseTLS {
+			client.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
+		}
 		targetHost := svc.TargetHost
 		if targetHost == "" {
 			targetHost = "127.0.0.1"
 		}
-		resp, err := client.Get(fmt.Sprintf("http://%s:%d", targetHost, svc.Port))
+		scheme := "http"
+		if svc.UseTLS {
+			scheme = "https"
+		}
+		resp, err := client.Get(fmt.Sprintf("%s://%s:%d", scheme, targetHost, svc.Port))
 		if err != nil {
 			swh.StatusText = "offline"
 		} else {
@@ -452,6 +543,7 @@ func (s *Server) handleAPIRename(w http.ResponseWriter, r *http.Request) {
 	// Update in memory
 	delete(s.services, service.Name)
 	service.Name = req.NewName
+	service.Group = naming.ExtractGroup(req.NewName)
 	s.services[service.Name] = service
 
 	log.Printf("Renamed %s -> %s", req.OldName, req.NewName)
@@ -616,6 +708,39 @@ const dashboardHTML = `<!DOCTYPE html>
         }
         tr.inactive {
             opacity: 0.5;
+        }
+        tr.group-header {
+            background: #f5f7fa;
+            cursor: pointer;
+            user-select: none;
+        }
+        tr.group-header:hover {
+            background: #edf0f5;
+        }
+        tr.group-header td {
+            padding: 10px 24px;
+            font-weight: 600;
+            color: #444;
+            font-size: 0.85em;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .group-toggle {
+            display: inline-block;
+            width: 16px;
+            transition: transform 0.2s;
+            margin-right: 6px;
+        }
+        .group-toggle.collapsed {
+            transform: rotate(-90deg);
+        }
+        tr.group-member td:first-child {
+            padding-left: 44px;
+        }
+        .group-count {
+            font-weight: normal;
+            color: #888;
+            font-size: 0.9em;
+            margin-left: 6px;
         }
         .name-cell {
             display: flex;
@@ -792,7 +917,7 @@ const dashboardHTML = `<!DOCTYPE html>
             <div class="card-header">
                 <h2>Discovered HTTP Servers</h2>
             </div>
-            {{if .Services}}
+            {{if .Groups}}
             <table>
                 <thead>
                     <tr>
@@ -806,8 +931,20 @@ const dashboardHTML = `<!DOCTYPE html>
                     </tr>
                 </thead>
                 <tbody>
+                    {{range .Groups}}
+                    {{if gt (len .Services) 1}}
+                    <tr class="group-header" onclick="toggleGroup('{{.Name}}')">
+                        <td colspan="7">
+                            <span class="group-toggle" id="toggle-{{.Name}}">&#9660;</span>
+                            {{.Name}}
+                            <span class="group-count">({{len .Services}} services)</span>
+                        </td>
+                    </tr>
+                    {{end}}
+                    {{$groupName := .Name}}
+                    {{$groupSize := len .Services}}
                     {{range .Services}}
-                    <tr data-name="{{.Name}}" id="row-{{.Name}}">
+                    <tr data-name="{{.Name}}" data-group="{{$groupName}}" id="row-{{.Name}}" class="{{if gt $groupSize 1}}group-member{{end}}">
                         <td>
                             <div class="name-cell">
                                 <span class="status-dot ok" title="Checking..."></span>
@@ -831,6 +968,7 @@ const dashboardHTML = `<!DOCTYPE html>
                             <button class="btn btn-danger" onclick="openBlacklistModal('{{.Name}}', {{.PID}}, '{{.ExePath}}')">Blacklist</button>
                         </td>
                     </tr>
+                    {{end}}
                     {{end}}
                 </tbody>
             </table>
@@ -883,14 +1021,53 @@ const dashboardHTML = `<!DOCTYPE html>
     <script>
         let currentService = {};
         const keptServices = JSON.parse(localStorage.getItem('keptServices') || '[]');
+        const collapsedGroups = JSON.parse(localStorage.getItem('collapsedGroups') || '[]');
 
         document.addEventListener('DOMContentLoaded', () => {
             keptServices.forEach(name => {
                 const checkbox = document.getElementById('keep-' + name);
                 if (checkbox) checkbox.checked = true;
             });
+            // Restore collapsed group state
+            collapsedGroups.forEach(group => {
+                setGroupCollapsed(group, true);
+            });
             fetchStatus();
         });
+
+        function toggleGroup(groupName) {
+            const members = document.querySelectorAll('tr.group-member[data-group="' + groupName + '"]');
+            const toggle = document.getElementById('toggle-' + groupName);
+            const isCollapsed = toggle && toggle.classList.contains('collapsed');
+
+            if (isCollapsed) {
+                // Expand
+                setGroupCollapsed(groupName, false);
+                const idx = collapsedGroups.indexOf(groupName);
+                if (idx > -1) collapsedGroups.splice(idx, 1);
+            } else {
+                // Collapse
+                setGroupCollapsed(groupName, true);
+                if (!collapsedGroups.includes(groupName)) collapsedGroups.push(groupName);
+            }
+            localStorage.setItem('collapsedGroups', JSON.stringify(collapsedGroups));
+        }
+
+        function setGroupCollapsed(groupName, collapsed) {
+            const members = document.querySelectorAll('tr.group-member[data-group="' + groupName + '"]');
+            const toggle = document.getElementById('toggle-' + groupName);
+
+            members.forEach(row => {
+                row.style.display = collapsed ? 'none' : '';
+            });
+            if (toggle) {
+                if (collapsed) {
+                    toggle.classList.add('collapsed');
+                } else {
+                    toggle.classList.remove('collapsed');
+                }
+            }
+        }
 
         function openRenameModal(name) {
             currentService.oldName = name;
@@ -902,23 +1079,23 @@ const dashboardHTML = `<!DOCTYPE html>
         function openBlacklistModal(name, pid, exePath) {
             currentService = { name, pid, exePath };
             document.getElementById('blacklistValue').value = pid;
-            
+
             const typeSelect = document.getElementById('blacklistType');
             typeSelect.innerHTML = '';
-            
+
             const options = [
                 { value: 'pid', text: 'By PID (' + pid + ')' },
                 { value: 'path', text: 'By Path (' + exePath.substring(0, 50) + '...)' },
                 { value: 'pattern', text: 'By Pattern (regex)' }
             ];
-            
+
             options.forEach(opt => {
                 const option = document.createElement('option');
                 option.value = opt.value;
                 option.textContent = opt.text;
                 typeSelect.appendChild(option);
             });
-            
+
             typeSelect.onchange = function() {
                 const val = typeSelect.value;
                 if (val === 'pid') document.getElementById('blacklistValue').value = pid;
@@ -926,7 +1103,7 @@ const dashboardHTML = `<!DOCTYPE html>
                 if (val === 'pattern') document.getElementById('blacklistValue').value = '';
                 document.getElementById('blacklistValue').readOnly = (val !== 'pattern');
             };
-            
+
             document.getElementById('blacklistModal').classList.add('active');
         }
 
@@ -937,13 +1114,13 @@ const dashboardHTML = `<!DOCTYPE html>
         function toggleKeep(name) {
             const checkbox = document.getElementById('keep-' + name);
             const index = keptServices.indexOf(name);
-            
+
             if (checkbox.checked) {
                 if (index === -1) keptServices.push(name);
             } else {
                 if (index > -1) keptServices.splice(index, 1);
             }
-            
+
             localStorage.setItem('keptServices', JSON.stringify(keptServices));
         }
 
@@ -1012,12 +1189,12 @@ const dashboardHTML = `<!DOCTYPE html>
 
         function updateServiceStatuses(services) {
             const activeServices = new Map(services.map(s => [s.Name, s]));
-            
+
             document.querySelectorAll('tr[data-name]').forEach(row => {
                 const name = row.getAttribute('data-name');
                 const service = activeServices.get(name);
                 const isKept = keptServices.includes(name);
-                
+
                 if (!service) {
                     if (isKept) {
                         row.classList.add('inactive');
@@ -1029,9 +1206,9 @@ const dashboardHTML = `<!DOCTYPE html>
                     }
                     return;
                 }
-                
+
                 const code = service.status_code || 0;
-                
+
                 if (code >= 200 && code < 400) {
                     updateStatus(row, 'ok', code);
                 } else if (code >= 400 && code < 500) {
@@ -1043,11 +1220,11 @@ const dashboardHTML = `<!DOCTYPE html>
                 }
             });
         }
-        
+
         function updateStatus(row, statusClass, text) {
             const dot = row.querySelector('.status-dot');
             const badge = row.querySelector('.status-badge');
-            
+
             if (dot) {
                 dot.className = 'status-dot ' + statusClass;
             }

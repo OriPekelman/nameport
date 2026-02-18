@@ -21,6 +21,8 @@ type ServiceRecord struct {
 	IsActive    bool      `json:"is_active"`             // Whether service is currently running
 	LastSeen    time.Time `json:"last_seen"`             // Last time service was detected
 	Keep        bool      `json:"keep"`                  // Whether to keep even when inactive
+	Group       string    `json:"group,omitempty"`       // Service group (e.g. "ollama" for ollama.localhost and ollama-1.localhost)
+	UseTLS      bool      `json:"use_tls,omitempty"`     // Whether backend uses TLS/HTTPS
 }
 
 // EffectiveTargetHost returns the target host, defaulting to 127.0.0.1

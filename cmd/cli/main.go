@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -186,10 +187,38 @@ func cmdList(store *storage.Store) {
 		return
 	}
 
+	// Backfill group for records that don't have one
+	for _, r := range records {
+		if r.Group == "" {
+			r.Group = naming.ExtractGroup(r.Name)
+		}
+	}
+
+	// Sort by group, then by name
+	sort.Slice(records, func(i, j int) bool {
+		if records[i].Group != records[j].Group {
+			return records[i].Group < records[j].Group
+		}
+		return records[i].Name < records[j].Name
+	})
+
+	// Build group counts
+	groupCounts := make(map[string]int)
+	for _, r := range records {
+		groupCounts[r.Group]++
+	}
+
 	fmt.Printf("%-30s %-22s %-8s %-6s %s\n", "NAME", "TARGET", "PID", "KEEP", "COMMAND")
 	fmt.Println(strings.Repeat("-", 110))
 
+	lastGroup := ""
 	for _, r := range records {
+		// Show group header for groups with 2+ members
+		if r.Group != lastGroup && groupCounts[r.Group] > 1 {
+			fmt.Printf("\n  [%s] (%d services)\n", r.Group, groupCounts[r.Group])
+		}
+		lastGroup = r.Group
+
 		cmd := r.ExePath
 		if len(r.Args) > 1 {
 			cmd = fmt.Sprintf("%s %s", r.ExePath, strings.Join(r.Args[1:], " "))
@@ -212,7 +241,14 @@ func cmdList(store *storage.Store) {
 		}
 
 		target := fmt.Sprintf("%s:%d", r.EffectiveTargetHost(), r.Port)
-		fmt.Printf("%-30s %-22s %-8d %-6s %s%s\n", r.Name, target, r.PID, keepStr, markers, cmd)
+
+		// Indent grouped services
+		nameStr := r.Name
+		if groupCounts[r.Group] > 1 {
+			nameStr = "  " + r.Name
+		}
+
+		fmt.Printf("%-30s %-22s %-8d %-6s %s%s\n", nameStr, target, r.PID, keepStr, markers, cmd)
 	}
 
 	fmt.Println()

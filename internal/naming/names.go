@@ -252,6 +252,17 @@ func computeHash(exePath string) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
+// ExtractGroup returns the group name from a .localhost name.
+// Names with a -N suffix (where N is a number) are grouped with the base name.
+// e.g. "ollama.localhost" -> "ollama", "ollama-1.localhost" -> "ollama",
+// "dropbox.localhost" -> "dropbox", "my-app-2.localhost" -> "my-app"
+func ExtractGroup(name string) string {
+	base := strings.TrimSuffix(name, ".localhost")
+	// Strip trailing -N suffix if present (where N is one or more digits)
+	re := regexp.MustCompile(`-\d+$`)
+	return re.ReplaceAllString(base, "")
+}
+
 // ComputeIdentityHash creates a unique identifier for a process
 // Based on executable path and arguments
 func ComputeIdentityHash(exePath string, args []string) string {
