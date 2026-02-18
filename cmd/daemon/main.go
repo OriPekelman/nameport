@@ -63,6 +63,8 @@ type Server struct {
 	tlsIssuer      *issuer.Issuer
 	tlsTrustor     trust.Trustor
 	tlsEnabled     bool
+	httpPort       int // HTTP listen port (default 80)
+	httpsPort      int // HTTPS listen port (default 443)
 }
 
 // DefaultCAStorePath is the default location for CA material.
@@ -79,10 +81,44 @@ func expandHome(path string) string {
 }
 
 func main() {
-	// Get storage path
+	// Parse flags
 	storePath := storage.DefaultStorePath()
-	if len(os.Args) > 1 {
-		storePath = os.Args[1]
+	httpPort := 80
+	httpsPort := 443
+	highPort := false
+
+	// Simple arg parsing (no flag package to keep it minimal)
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--high-port", "--dev":
+			highPort = true
+		case "--http-port":
+			if i+1 < len(args) {
+				i++
+				fmt.Sscanf(args[i], "%d", &httpPort)
+			}
+		case "--https-port":
+			if i+1 < len(args) {
+				i++
+				fmt.Sscanf(args[i], "%d", &httpsPort)
+			}
+		case "--config":
+			if i+1 < len(args) {
+				i++
+				storePath = args[i]
+			}
+		default:
+			// Legacy: first positional arg is store path
+			if !strings.HasPrefix(args[i], "--") {
+				storePath = args[i]
+			}
+		}
+	}
+
+	if highPort {
+		httpPort = 8080
+		httpsPort = 8443
 	}
 
 	// Initialize store
@@ -113,6 +149,8 @@ func main() {
 		notifyManager:  notifyMgr,
 		services:       make(map[string]*Service),
 		pollInterval:   2 * time.Second,
+		httpPort:       httpPort,
+		httpsPort:      httpsPort,
 	}
 
 	// Initialize TLS CA
@@ -191,14 +229,20 @@ func main() {
 
 	log.Println("localhost-magic daemon starting...")
 	log.Printf("Storage: %s", storePath)
+	if highPort {
+		log.Printf("Running in high-port mode (no root required)")
+	}
 
-	// HTTP server on :80
+	httpAddr := fmt.Sprintf(":%d", httpPort)
+	httpsAddr := fmt.Sprintf(":%d", httpsPort)
+
+	// HTTP server
 	httpServer := &http.Server{
-		Addr:    ":80",
+		Addr:    httpAddr,
 		Handler: mux,
 	}
 
-	// HTTPS server on :443 (if TLS is enabled)
+	// HTTPS server (if TLS is enabled)
 	var httpsServer *http.Server
 	if srv.tlsEnabled {
 		tlsConfig := &tls.Config{
@@ -206,7 +250,7 @@ func main() {
 			MinVersion:     tls.VersionTLS12,
 		}
 		httpsServer = &http.Server{
-			Addr:      ":443",
+			Addr:      httpsAddr,
 			Handler:   srv.addForwardedProto(mux),
 			TLSConfig: tlsConfig,
 		}
@@ -218,7 +262,7 @@ func main() {
 
 	// Start HTTP listener
 	go func() {
-		log.Println("Listening on :80 (HTTP)")
+		log.Printf("Listening on %s (HTTP)", httpAddr)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("HTTP server error: %v", err)
 		}
@@ -227,15 +271,22 @@ func main() {
 	// Start HTTPS listener
 	if httpsServer != nil {
 		go func() {
-			log.Println("Listening on :443 (HTTPS, dynamic certs via local CA)")
-			// ListenAndServeTLS with empty cert/key because GetCertificate handles it
+			log.Printf("Listening on %s (HTTPS, dynamic certs via local CA)", httpsAddr)
 			if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 				log.Printf("HTTPS server error: %v (HTTPS disabled)", err)
 			}
 		}()
 	}
 
-	log.Println("Dashboard: http://localhost/ or https://localhost/")
+	// Show dashboard URL
+	if httpPort == 80 {
+		log.Println("Dashboard: http://localhost/ or https://localhost/")
+	} else {
+		log.Printf("Dashboard: http://localhost:%d/", httpPort)
+		if srv.tlsEnabled {
+			log.Printf("           https://localhost:%d/", httpsPort)
+		}
+	}
 
 	// Wait for shutdown signal
 	<-ctx.Done()
@@ -288,8 +339,8 @@ func (s *Server) discover() {
 	seenNames := make(map[string]bool)
 
 	for _, listener := range listeners {
-		// Skip ourselves (port 80 and 443)
-		if listener.Port == 80 || listener.Port == 443 {
+		// Skip our own ports
+		if listener.Port == s.httpPort || listener.Port == s.httpsPort {
 			continue
 		}
 
@@ -409,7 +460,12 @@ func (s *Server) discover() {
 		}
 		log.Printf("New service: %s -> %s://127.0.0.1:%d (%s)", name, scheme, listener.Port, listener.ExePath)
 
-		if err := s.notifyManager.ServiceDiscovered(name, listener.Port); err != nil {
+		if err := s.notifyManager.Notify(notify.Notification{
+			Event:   notify.EventServiceDiscovered,
+			Title:   "Service Discovered",
+			Message: fmt.Sprintf("%s is now available on port %d", name, listener.Port),
+			URL:     s.serviceURL(name),
+		}); err != nil {
 			log.Printf("Notification error: %v", err)
 		}
 	}
@@ -424,7 +480,12 @@ func (s *Server) discover() {
 				s.store.Save(record)
 				log.Printf("Service inactive: %s", name)
 
-				if err := s.notifyManager.ServiceOffline(name); err != nil {
+				if err := s.notifyManager.Notify(notify.Notification{
+					Event:   notify.EventServiceOffline,
+					Title:   "Service Offline",
+					Message: fmt.Sprintf("%s is no longer available", name),
+					URL:     s.dashboardURL(),
+				}); err != nil {
 					log.Printf("Notification error: %v", err)
 				}
 			}
@@ -488,6 +549,28 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	r.Host = fmt.Sprintf("%s:%d", service.TargetHost, service.Port)
 
 	service.Proxy.ServeHTTP(w, r)
+}
+
+// serviceURL returns the URL for a service based on current port config and TLS status.
+func (s *Server) serviceURL(name string) string {
+	if s.tlsEnabled {
+		if s.httpsPort == 443 {
+			return fmt.Sprintf("https://%s", name)
+		}
+		return fmt.Sprintf("https://%s:%d", name, s.httpsPort)
+	}
+	if s.httpPort == 80 {
+		return fmt.Sprintf("http://%s", name)
+	}
+	return fmt.Sprintf("http://%s:%d", name, s.httpPort)
+}
+
+// dashboardURL returns the URL of the dashboard.
+func (s *Server) dashboardURL() string {
+	if s.httpPort == 80 {
+		return "http://localhost"
+	}
+	return fmt.Sprintf("http://localhost:%d", s.httpPort)
 }
 
 // findService looks up a service by hostname. It first tries an exact match,
@@ -559,12 +642,16 @@ func (s *Server) serveDashboardWithError(w http.ResponseWriter, r *http.Request,
 		ErrorMsg   string
 		Hostname   string
 		TLSEnabled bool
+		HTTPPort   int
+		HTTPSPort  int
 	}{
 		Services:   services,
 		Groups:     groups,
 		ErrorMsg:   errorMsg,
 		Hostname:   r.Host,
 		TLSEnabled: s.tlsEnabled,
+		HTTPPort:   s.httpPort,
+		HTTPSPort:  s.httpsPort,
 	}
 
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
@@ -1092,7 +1179,7 @@ const dashboardHTML = `<!DOCTYPE html>
                         <td>
                             <div class="name-cell">
                                 <span class="status-dot ok" title="Checking..."></span>
-                                {{if $.TLSEnabled}}<a href="https://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}</a>{{else}}<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}</a>{{end}}
+                                {{if $.TLSEnabled}}{{if eq $.HTTPSPort 443}}<a href="https://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}</a>{{else}}<a href="https://{{.Name}}:{{$.HTTPSPort}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}:{{$.HTTPSPort}}</a>{{end}}{{else}}{{if eq $.HTTPPort 80}}<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}</a>{{else}}<a href="http://{{.Name}}:{{$.HTTPPort}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}:{{$.HTTPPort}}</a>{{end}}{{end}}
                                 <button class="btn-icon" onclick="openRenameModal('{{.Name}}')" title="Rename">Edit</button>
                             </div>
                         </td>
