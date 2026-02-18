@@ -54,6 +54,9 @@ $ cd ~/projects/myapp && npm run dev
 - **Web Dashboard**: Beautiful management interface at http://localhost/
 - **Health Monitoring**: Real-time status indicators (200/404/500/offline)
 - **Remote Target Proxying**: Proxy to Docker containers or other machines on your network
+- **Customizable Naming Rules**: Data-driven JSON naming rules with user overrides
+- **Persistent Blacklist**: Block services by PID, path, or regex pattern
+- **Docker Discovery**: Auto-detect containers with exposed ports
 - **No DNS Server Needed**: Uses `.localhost` TLD which browsers auto-resolve to 127.0.0.1
 
 ## Architecture
@@ -149,6 +152,15 @@ Blacklist services:
 ./localhost-magic blacklist pid 12345                    # By PID
 ./localhost-magic blacklist path /usr/sbin/cupsd         # By executable path
 ./localhost-magic blacklist pattern "^localhost-magic"   # By regex pattern
+./localhost-magic blacklist list                         # List all user blacklist entries
+./localhost-magic blacklist remove <id>                  # Remove a blacklist entry
+```
+
+Manage naming rules:
+```bash
+./localhost-magic rules list                             # Show active rules with priority
+./localhost-magic rules export                           # Export rules as JSON
+./localhost-magic rules import my-rules.json             # Import custom rules
 ```
 
 ### Web Dashboard
@@ -529,17 +541,25 @@ See [ROADMAP.md](ROADMAP.md) for the full development roadmap with detailed spec
 - [x] Health status monitoring
 - [x] Manual service entries
 - [x] Remote target proxying (Docker, LAN machines)
+- [x] Persistent blacklist configuration (1.1)
+- [x] Data-driven naming heuristics with JSON rules (1.2)
+- [x] Two-tier TLS certificate authority (2.1)
+- [x] TLS domain policy with IANA TLD blocklist (2.4)
+- [x] Docker container auto-detection (3.1)
+- [x] Connection and I/O metrics (5.1)
+- [x] systemd/launchd auto-start support (6.1)
+- [x] Desktop notifications (6.2)
 
 ### Planned (by milestone)
 
 | Milestone | Highlights |
 |---|---|
-| **1. Core Hardening** | Persistent blacklist, naming heuristics as data, subdomain auto-grouping |
-| **2. Local Dev TLS** | Zero-config HTTPS with local CA, wildcard certs, proxy config export ([spec](docs/specs/local-tls-authority.md)) |
-| **3. Containers** | Docker auto-detection, Compose-aware grouping |
+| **1. Core Hardening** | ~~Persistent blacklist~~, ~~naming heuristics~~, subdomain auto-grouping |
+| **2. Local Dev TLS** | ~~CA management~~, ~~domain policy~~, trust bootstrap, cert issuer, HTTPS listener, proxy config export ([spec](docs/specs/local-tls-authority.md)) |
+| **3. Containers** | ~~Docker auto-detection~~, Compose-aware grouping |
 | **4. Peer-to-Peer** | mDNS discovery, access teammates' services as subdomains |
-| **5. Observability** | Connection metrics, dashboard activity indicators, traffic inspector |
-| **6. System Integration** | systemd/launchd auto-start, desktop notifications, optional GUI |
+| **5. Observability** | ~~Connection metrics~~, dashboard activity indicators, traffic inspector |
+| **6. System Integration** | ~~systemd/launchd auto-start~~, ~~desktop notifications~~, optional GUI |
 | **7. Advanced Routing** | Custom TLD support with local DNS resolver |
 
 ## License

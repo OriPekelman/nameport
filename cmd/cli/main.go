@@ -95,6 +95,12 @@ func main() {
 			os.Exit(1)
 		}
 		cmdRules(os.Args[2:])
+	case "remove", "rm":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic remove <name>\n")
+			os.Exit(1)
+		}
+		cmdRemove(store, os.Args[2])
 	case "add":
 		if len(os.Args) < 4 {
 			fmt.Fprintf(os.Stderr, "Usage: localhost-magic add <name> [host:]<port>\n")
@@ -140,6 +146,7 @@ func printUsage() {
 	fmt.Println("  localhost-magic rules list                    List naming rules")
 	fmt.Println("  localhost-magic rules export                  Export rules as JSON")
 	fmt.Println("  localhost-magic rules import <file>           Import user rules from file")
+	fmt.Println("  localhost-magic remove <name>                  Remove a service entry")
 	fmt.Println("  localhost-magic add <name> [host:]<port>       Add manual service entry")
 	fmt.Println("  localhost-magic --config <path>               Use custom config path")
 	fmt.Println()
@@ -305,6 +312,23 @@ func cmdAdd(store *storage.Store, name string, port int, targetHost string) {
 	fmt.Printf("Added manual service: %s -> %s:%d\n", record.Name, record.EffectiveTargetHost(), record.Port)
 	fmt.Println("Note: This service will be kept even when not running.")
 	fmt.Println("      Restart the daemon to activate the proxy.")
+}
+
+func cmdRemove(store *storage.Store, name string) {
+	if !strings.HasSuffix(name, ".localhost") {
+		name = name + ".localhost"
+	}
+
+	if _, ok := store.GetByName(name); !ok {
+		log.Fatalf("Service not found: %s", name)
+	}
+
+	if err := store.RemoveByName(name); err != nil {
+		log.Fatalf("Failed to remove service: %v", err)
+	}
+
+	fmt.Printf("Removed %s\n", name)
+	fmt.Println("Note: You may need to restart the daemon for changes to take effect.")
 }
 
 func cmdRules(args []string) {

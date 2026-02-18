@@ -10,14 +10,26 @@ This document describes the planned evolution of localhost-magic. Each milestone
 
 ```
 cmd/
-  cli/main.go              CLI tool
-  daemon/main.go            HTTP daemon + reverse proxy + dashboard
+  cli/main.go                CLI tool (list, rename, keep, add, blacklist, rules)
+  daemon/main.go             HTTP daemon + reverse proxy + dashboard
 
 internal/
-  naming/names.go           Name generation heuristics + blacklist
-  portscan/                 OS-specific port scanning (darwin, linux)
-  probe/http.go             HTTP detection on a host:port
-  storage/store.go          JSON persistence for ServiceRecord
+  discovery/docker/          Docker container auto-detection (3.1) ✅
+  metrics/                   Connection & I/O metrics with ring buffer (5.1) ✅
+  naming/
+    names.go                 Name generation (delegates to rule engine)
+    rules.go                 Data-driven naming rules (1.2) ✅
+    rules_builtin.json       16 built-in rules (//go:embed)
+  notify/                    Desktop notifications - macOS/Linux (6.2) ✅
+  portscan/                  OS-specific port scanning (darwin, linux)
+  probe/http.go              HTTP detection on a host:port
+  storage/
+    store.go                 JSON persistence for ServiceRecord
+    blacklist.go             Persistent blacklist configuration (1.1) ✅
+  system/                    systemd/launchd auto-start (6.1) ✅
+  tls/
+    ca/                      Two-tier Ed25519 certificate authority (2.1) ✅
+    policy/                  Domain policy with IANA TLD blocklist (2.4) ✅
 ```
 
 Key data type:

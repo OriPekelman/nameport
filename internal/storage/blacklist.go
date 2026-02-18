@@ -275,6 +275,12 @@ func (bs *BlacklistStore) persist() error {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 
+	if err := tmpFile.Chmod(0666); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to chmod temp file: %w", err)
+	}
+
 	if err := tmpFile.Close(); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("failed to close temp file: %w", err)

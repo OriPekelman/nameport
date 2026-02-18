@@ -137,6 +137,28 @@ func (s *Store) UpdateKeep(id string, keep bool) error {
 	return s.persist()
 }
 
+// Remove deletes a record by ID
+func (s *Store) Remove(id string) error {
+	record, ok := s.records[id]
+	if !ok {
+		return fmt.Errorf("record not found: %s", id)
+	}
+
+	delete(s.names, record.Name)
+	delete(s.records, id)
+
+	return s.persist()
+}
+
+// RemoveByName deletes a record by its assigned name
+func (s *Store) RemoveByName(name string) error {
+	id, ok := s.names[name]
+	if !ok {
+		return fmt.Errorf("service not found: %s", name)
+	}
+	return s.Remove(id)
+}
+
 // AddManualService adds a service manually (for services not currently running)
 func (s *Store) AddManualService(name string, port int, targetHost string) (*ServiceRecord, error) {
 	if targetHost == "" {
@@ -200,7 +222,7 @@ func (s *Store) persist() error {
 		return err
 	}
 
-	return os.WriteFile(s.path, data, 0644)
+	return os.WriteFile(s.path, data, 0666)
 }
 
 // DefaultStorePath returns the default storage path
