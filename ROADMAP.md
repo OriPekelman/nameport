@@ -457,7 +457,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ## Milestone 6 — System Integration
 
-### 6.1 systemd / launchd Auto-Start
+### 6.1 systemd / launchd Auto-Start ✅
 
 **Problem**: Users must manually start the daemon with sudo.
 
