@@ -383,7 +383,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ## Milestone 5 — Observability & Dashboard
 
-### 5.1 Connection & I/O Metrics (`internal/metrics`)
+### 5.1 ✅ Connection & I/O Metrics (`internal/metrics`)
 
 **Problem**: No visibility into proxy traffic.
 
