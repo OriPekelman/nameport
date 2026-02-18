@@ -286,6 +286,17 @@ func ExtractGroup(name string) string {
 	return re.ReplaceAllString(base, "")
 }
 
+// ExtractGroupFromExe returns the group name for a service, preferring
+// the macOS .app bundle name when available. This ensures that all binaries
+// inside the same .app bundle (e.g. Contents/MacOS/Ollama and
+// Contents/Resources/ollama) are grouped together.
+func ExtractGroupFromExe(exePath string, name string) string {
+	if appName := extractAppBundleName(exePath); appName != "" {
+		return SanitizeName(appName)
+	}
+	return ExtractGroup(name)
+}
+
 // ComputeIdentityHash creates a unique identifier for a process
 // Based on executable path and arguments
 func ComputeIdentityHash(exePath string, args []string) string {

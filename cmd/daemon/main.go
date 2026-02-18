@@ -199,7 +199,7 @@ func main() {
 		srv.generator.GenerateName(record.ExePath, "", record.Args) // Mark name as used
 		// Backfill group for records that don't have one yet
 		if record.Group == "" {
-			record.Group = naming.ExtractGroup(record.Name)
+			record.Group = naming.ExtractGroupFromExe(record.ExePath, record.Name)
 		}
 		srv.services[record.Name] = &Service{
 			ID:         record.ID,
@@ -427,7 +427,7 @@ func (s *Server) discover() {
 			IsActive:    true,
 			LastSeen:    now,
 			Keep:        false,
-			Group:       naming.ExtractGroup(name),
+			Group:       naming.ExtractGroupFromExe(listener.ExePath, name),
 			UseTLS:      useTLS,
 		}
 
@@ -565,6 +565,14 @@ func (s *Server) serviceURL(name string) string {
 	return fmt.Sprintf("http://%s:%d", name, s.httpPort)
 }
 
+// httpServiceURL returns the HTTP URL for a service (always HTTP, regardless of TLS status).
+func (s *Server) httpServiceURL(name string) string {
+	if s.httpPort == 80 {
+		return fmt.Sprintf("http://%s", name)
+	}
+	return fmt.Sprintf("http://%s:%d", name, s.httpPort)
+}
+
 // dashboardURL returns the URL of the dashboard.
 func (s *Server) dashboardURL() string {
 	if s.httpPort == 80 {
@@ -595,7 +603,7 @@ func serviceGroup(svc *Service) string {
 	if svc.Group != "" {
 		return svc.Group
 	}
-	return naming.ExtractGroup(svc.Name)
+	return naming.ExtractGroupFromExe(svc.ExePath, svc.Name)
 }
 
 // serveDashboardWithError renders the admin dashboard with an optional error message
@@ -682,15 +690,21 @@ func (s *Server) handleAPIServices(w http.ResponseWriter, r *http.Request) {
 		Healthy    bool   `json:"healthy"`
 		StatusCode int    `json:"status_code"`
 		StatusText string `json:"status_text"`
+		Protocol   string `json:"protocol"`
 	}
 
 	result := make([]ServiceWithHealth, 0, len(services))
 	for _, svc := range services {
+		proto := "http"
+		if svc.UseTLS {
+			proto = "https"
+		}
 		swh := ServiceWithHealth{
 			Service:    svc,
 			Healthy:    false,
 			StatusCode: 0,
 			StatusText: "unknown",
+			Protocol:   proto,
 		}
 
 		// Quick health check
@@ -774,7 +788,7 @@ func (s *Server) handleAPIRename(w http.ResponseWriter, r *http.Request) {
 	// Update in memory
 	delete(s.services, service.Name)
 	service.Name = req.NewName
-	service.Group = naming.ExtractGroup(req.NewName)
+	service.Group = naming.ExtractGroupFromExe(service.ExePath, req.NewName)
 	s.services[service.Name] = service
 
 	log.Printf("Renamed %s -> %s", req.OldName, req.NewName)
@@ -999,6 +1013,20 @@ const dashboardHTML = `<!DOCTYPE html>
         .service-link.inactive {
             color: #999;
         }
+        .service-links {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .service-link-secondary {
+            color: #999;
+            text-decoration: none;
+            font-size: 0.8em;
+        }
+        .service-link-secondary:hover {
+            text-decoration: underline;
+            color: #666;
+        }
         .btn-icon {
             background: none;
             border: none;
@@ -1178,8 +1206,15 @@ const dashboardHTML = `<!DOCTYPE html>
                     <tr data-name="{{.Name}}" data-group="{{$groupName}}" id="row-{{.Name}}" class="{{if gt $groupSize 1}}group-member{{end}}">
                         <td>
                             <div class="name-cell">
-                                <span class="status-dot ok" title="Checking..."></span>
-                                {{if $.TLSEnabled}}{{if eq $.HTTPSPort 443}}<a href="https://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}</a>{{else}}<a href="https://{{.Name}}:{{$.HTTPSPort}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}:{{$.HTTPSPort}}</a>{{end}}{{else}}{{if eq $.HTTPPort 80}}<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}</a>{{else}}<a href="http://{{.Name}}:{{$.HTTPPort}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}:{{$.HTTPPort}}</a>{{end}}{{end}}
+                                <span class="status-dot ok" title="Origin: {{if .UseTLS}}HTTPS{{else}}HTTP{{end}}"></span>
+                                {{if $.TLSEnabled}}
+                                <div class="service-links">
+                                    {{if eq $.HTTPSPort 443}}<a href="https://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">&#x1f512; https://{{.Name}}</a>{{else}}<a href="https://{{.Name}}:{{$.HTTPSPort}}" class="service-link" target="_blank" id="link-{{.Name}}">&#x1f512; https://{{.Name}}:{{$.HTTPSPort}}</a>{{end}}
+                                    {{if eq $.HTTPPort 80}}<a href="http://{{.Name}}" class="service-link-secondary" target="_blank">http://{{.Name}}</a>{{else}}<a href="http://{{.Name}}:{{$.HTTPPort}}" class="service-link-secondary" target="_blank">http://{{.Name}}:{{$.HTTPPort}}</a>{{end}}
+                                </div>
+                                {{else}}
+                                {{if eq $.HTTPPort 80}}<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}</a>{{else}}<a href="http://{{.Name}}:{{$.HTTPPort}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}:{{$.HTTPPort}}</a>{{end}}
+                                {{end}}
                                 <button class="btn-icon" onclick="openRenameModal('{{.Name}}')" title="Rename">Edit</button>
                             </div>
                         </td>
@@ -1436,6 +1471,12 @@ const dashboardHTML = `<!DOCTYPE html>
                         row.style.display = 'none';
                     }
                     return;
+                }
+
+                // Update status dot tooltip with origin protocol
+                const dot = row.querySelector('.status-dot');
+                if (dot && service.protocol) {
+                    dot.title = 'Origin: ' + service.protocol.toUpperCase();
                 }
 
                 const code = service.status_code || 0;

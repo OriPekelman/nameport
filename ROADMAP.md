@@ -50,6 +50,27 @@ type ServiceRecord struct {
 
 ---
 
+## Proxy Matrix
+
+The daemon listens on both HTTP (`:80`/`:8080`) and HTTPS (`:443`/`:8443`). Origin services can themselves serve either HTTP or HTTPS. All four combinations work:
+
+| User accesses via | Origin protocol | Proxy behavior | Headers set |
+|---|---|---|---|
+| `http://app.localhost` | HTTP | Simple reverse proxy | `X-Forwarded-Host` |
+| `https://app.localhost` | HTTP | TLS termination at proxy, plain HTTP to backend | `X-Forwarded-Proto: https`, `X-Forwarded-Host` |
+| `http://app.localhost` | HTTPS | Proxy connects to backend via TLS (`InsecureSkipVerify`), serves plain HTTP to user | `X-Forwarded-Host` |
+| `https://app.localhost` | HTTPS | Our TLS cert to user, separate TLS connection to backend (`InsecureSkipVerify`) | `X-Forwarded-Proto: https`, `X-Forwarded-Host` |
+
+**Behavior notes**:
+
+- The proxy auto-detects the origin protocol via `probe.DetectProtocol()` on each discovery scan.
+- When the origin serves HTTPS (e.g. OrbStack containers with their own certs), the proxy uses `InsecureSkipVerify: true` because origin certs are typically self-signed or issued by a different CA.
+- `X-Forwarded-Proto` is only set on the HTTPS listener. The HTTP listener does not set it, allowing backends to see the true protocol.
+- `X-Forwarded-Host` is always set to the original `Host` header from the user's request.
+- The dashboard shows both HTTP and HTTPS links when TLS is enabled. The origin protocol is available as a tooltip on the status dot and via the API (`protocol` field).
+
+---
+
 ## Milestone 1 — Core Hardening
 
 These items strengthen the existing codebase without adding new user-facing features. They unblock every later milestone.

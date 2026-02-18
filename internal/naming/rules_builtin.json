@@ -3,7 +3,7 @@
     "id": "app-bundle",
     "description": "macOS .app bundle: extract application name",
     "priority": 10,
-    "exe_pattern": "\\.app/Contents/MacOS/",
+    "exe_pattern": "\\.app/Contents/",
     "name_source": "app_bundle",
     "name_regex": "/([^/]+)\\.app/"
   },
