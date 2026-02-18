@@ -916,6 +916,7 @@ const dashboardHTML = `<!DOCTYPE html>
             background: #fff;
             border: 1px solid #e0e0e0;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            overflow: hidden;
         }
         .card-header {
             padding: 20px 24px;
@@ -927,14 +928,18 @@ const dashboardHTML = `<!DOCTYPE html>
             font-weight: 600;
             color: #1a1a1a;
         }
+        .table-wrapper {
+            overflow-x: auto;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            table-layout: fixed;
         }
         th {
             text-align: left;
-            padding: 12px 24px;
+            padding: 10px 12px;
             font-weight: 600;
             color: #555;
             font-size: 0.75em;
@@ -944,7 +949,7 @@ const dashboardHTML = `<!DOCTYPE html>
             background: #fafafa;
         }
         td {
-            padding: 14px 24px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f0f0f0;
             vertical-align: middle;
         }
@@ -963,7 +968,7 @@ const dashboardHTML = `<!DOCTYPE html>
             background: #edf0f5;
         }
         tr.group-header td {
-            padding: 10px 24px;
+            padding: 8px 12px;
             font-weight: 600;
             color: #444;
             font-size: 0.85em;
@@ -979,7 +984,7 @@ const dashboardHTML = `<!DOCTYPE html>
             transform: rotate(-90deg);
         }
         tr.group-member td:first-child {
-            padding-left: 44px;
+            padding-left: 32px;
         }
         .group-count {
             font-weight: normal;
@@ -1064,15 +1069,16 @@ const dashboardHTML = `<!DOCTYPE html>
         }
         .command {
             font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-            font-size: 0.8em;
+            font-size: 0.75em;
             color: #555;
             background: #f5f5f5;
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-radius: 3px;
-            max-width: 400px;
+            max-width: 280px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            display: block;
         }
         .keep-checkbox {
             display: flex;
@@ -1086,14 +1092,15 @@ const dashboardHTML = `<!DOCTYPE html>
             cursor: pointer;
         }
         .btn {
-            padding: 6px 14px;
+            padding: 4px 10px;
             border: 1px solid #ddd;
             background: #fff;
             cursor: pointer;
-            font-size: 0.8em;
+            font-size: 0.75em;
             font-weight: 500;
             color: #555;
             transition: all 0.2s;
+            white-space: nowrap;
         }
         .btn:hover {
             background: #f5f5f5;
@@ -1177,7 +1184,17 @@ const dashboardHTML = `<!DOCTYPE html>
                 <h2>Discovered HTTP Servers</h2>
             </div>
             {{if .Groups}}
+            <div class="table-wrapper">
             <table>
+                <colgroup>
+                    <col style="width: 22%">
+                    <col style="width: 8%">
+                    <col style="width: 7%">
+                    <col style="width: 7%">
+                    <col style="width: 30%">
+                    <col style="width: 7%">
+                    <col style="width: 10%">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -1238,6 +1255,7 @@ const dashboardHTML = `<!DOCTYPE html>
                     {{end}}
                 </tbody>
             </table>
+            </div>
             {{else}}
             <div class="empty-state">
                 <p>No services found. Start a local HTTP server to see it here.</p>
