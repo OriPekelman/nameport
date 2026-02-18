@@ -277,6 +277,33 @@ tr:last-child td {
   color: var(--text-muted);
 }
 
+/* Screenshots */
+
+.screenshots {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 2rem 0 0;
+}
+
+.screenshots figure {
+  margin: 0;
+}
+
+.screenshots img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+}
+
+.screenshots figcaption {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
 /* Navigation */
 
 .nav {
