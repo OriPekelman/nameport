@@ -34,11 +34,12 @@ type Service struct {
 
 // Server manages the discovery and proxying of local services
 type Server struct {
-	store        *storage.Store
-	generator    *naming.Generator
-	services     map[string]*Service // key = name
-	mu           sync.RWMutex
-	pollInterval time.Duration
+	store          *storage.Store
+	blacklistStore *storage.BlacklistStore
+	generator      *naming.Generator
+	services       map[string]*Service // key = name
+	mu             sync.RWMutex
+	pollInterval   time.Duration
 }
 
 func main() {
@@ -54,12 +55,19 @@ func main() {
 		log.Fatalf("Failed to initialize store: %v", err)
 	}
 
+	// Initialize blacklist store
+	blacklistStore, err := storage.NewBlacklistStore(storage.DefaultBlacklistPath())
+	if err != nil {
+		log.Fatalf("Failed to initialize blacklist store: %v", err)
+	}
+
 	// Create server
 	srv := &Server{
-		store:        store,
-		generator:    naming.NewGenerator(),
-		services:     make(map[string]*Service),
-		pollInterval: 2 * time.Second,
+		store:          store,
+		blacklistStore: blacklistStore,
+		generator:      naming.NewGenerator(),
+		services:       make(map[string]*Service),
+		pollInterval:   2 * time.Second,
 	}
 
 	// Load existing services into generator to avoid name collisions
@@ -129,7 +137,12 @@ func (s *Server) discover() {
 		}
 
 		// Skip blacklisted services
-		if naming.IsBlacklisted(listener.ExePath, listener.Args) {
+		if s.blacklistStore.IsBlacklisted(listener.ExePath, listener.Args) {
+			continue
+		}
+
+		// Skip PID-blacklisted services
+		if s.blacklistStore.IsBlacklistedPID(listener.PID) {
 			continue
 		}
 
@@ -445,13 +458,18 @@ func (s *Server) handleAPIBlacklist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Implement persistent blacklist storage
-	// For now, just log and return success
-	log.Printf("Blacklist request: %s = %s", req.Type, req.Value)
+	entry, err := s.blacklistStore.Add(req.Type, req.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Blacklist added: [%s] %s = %s", entry.ID, entry.Type, entry.Value)
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
+		"id":      entry.ID,
 		"message": fmt.Sprintf("Blacklisted %s: %s", req.Type, req.Value),
 	})
 }

@@ -17,6 +17,7 @@ func main() {
 	}
 
 	storePath := storage.DefaultStorePath()
+	blacklistPath := storage.DefaultBlacklistPath()
 
 	// Check for custom store path
 	for i, arg := range os.Args {
@@ -31,6 +32,11 @@ func main() {
 	store, err := storage.NewStore(storePath)
 	if err != nil {
 		log.Fatalf("Failed to open store: %v", err)
+	}
+
+	blacklistStore, err := storage.NewBlacklistStore(blacklistPath)
+	if err != nil {
+		log.Fatalf("Failed to open blacklist store: %v", err)
 	}
 
 	command := os.Args[1]
@@ -55,12 +61,32 @@ func main() {
 		}
 		cmdKeep(store, os.Args[2], keepVal)
 	case "blacklist":
-		if len(os.Args) < 4 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist <type> <value>\n")
-			fmt.Fprintf(os.Stderr, "  type: pid|path|pattern\n")
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist <subcommand>\n")
+			fmt.Fprintf(os.Stderr, "  blacklist <type> <value>     Add to blacklist (type: pid|path|pattern)\n")
+			fmt.Fprintf(os.Stderr, "  blacklist list               List all blacklist entries\n")
+			fmt.Fprintf(os.Stderr, "  blacklist remove <id>        Remove a blacklist entry\n")
 			os.Exit(1)
 		}
-		cmdBlacklist(os.Args[2], os.Args[3])
+		subCmd := os.Args[2]
+		switch subCmd {
+		case "list":
+			cmdBlacklistList(blacklistStore)
+		case "remove":
+			if len(os.Args) < 4 {
+				fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist remove <id>\n")
+				os.Exit(1)
+			}
+			cmdBlacklistRemove(blacklistStore, os.Args[3])
+		default:
+			// Treat as blacklist add: blacklist <type> <value>
+			if len(os.Args) < 4 {
+				fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist <type> <value>\n")
+				fmt.Fprintf(os.Stderr, "  type: pid|path|pattern\n")
+				os.Exit(1)
+			}
+			cmdBlacklistAdd(blacklistStore, os.Args[2], os.Args[3])
+		}
 	case "add":
 		if len(os.Args) < 4 {
 			fmt.Fprintf(os.Stderr, "Usage: localhost-magic add <name> [host:]<port>\n")
@@ -101,6 +127,8 @@ func printUsage() {
 	fmt.Println("  localhost-magic rename <old> <new>            Rename a service")
 	fmt.Println("  localhost-magic keep <name> [true|false]      Toggle keep status (default: true)")
 	fmt.Println("  localhost-magic blacklist <type> <value>      Add to blacklist")
+	fmt.Println("  localhost-magic blacklist list                List all blacklist entries")
+	fmt.Println("  localhost-magic blacklist remove <id>         Remove a blacklist entry")
 	fmt.Println("  localhost-magic add <name> [host:]<port>       Add manual service entry")
 	fmt.Println("  localhost-magic --config <path>               Use custom config path")
 	fmt.Println()
@@ -216,17 +244,39 @@ func cmdKeep(store *storage.Store, name string, keep bool) {
 	fmt.Println("Note: You may need to restart the daemon for changes to take effect.")
 }
 
-func cmdBlacklist(blacklistType, value string) {
-	// Validate type
-	validTypes := map[string]bool{"pid": true, "path": true, "pattern": true}
-	if !validTypes[blacklistType] {
-		log.Fatalf("Invalid blacklist type: %s (must be pid, path, or pattern)", blacklistType)
+func cmdBlacklistAdd(blacklistStore *storage.BlacklistStore, blacklistType, value string) {
+	entry, err := blacklistStore.Add(blacklistType, value)
+	if err != nil {
+		log.Fatalf("Failed to add blacklist entry: %v", err)
 	}
 
-	// For now, just log the request (daemon needs to implement persistent blacklist)
-	fmt.Printf("Blacklist %s: %s\n", blacklistType, value)
-	fmt.Println("Note: This will be applied when the daemon restarts.")
-	fmt.Println("      To blacklist immediately, use the web dashboard.")
+	fmt.Printf("Added blacklist entry: [%s] %s = %s\n", entry.ID, entry.Type, entry.Value)
+	fmt.Println("Note: The daemon will pick up this change on its next scan cycle.")
+}
+
+func cmdBlacklistList(blacklistStore *storage.BlacklistStore) {
+	entries := blacklistStore.List()
+
+	if len(entries) == 0 {
+		fmt.Println("No user-defined blacklist entries.")
+		fmt.Println("(Built-in system blacklist rules are always active.)")
+		return
+	}
+
+	fmt.Printf("%-18s %-10s %-40s %s\n", "ID", "TYPE", "VALUE", "CREATED")
+	fmt.Println(strings.Repeat("-", 90))
+
+	for _, e := range entries {
+		fmt.Printf("%-18s %-10s %-40s %s\n", e.ID, e.Type, e.Value, e.CreatedAt.Format("2006-01-02 15:04:05"))
+	}
+}
+
+func cmdBlacklistRemove(blacklistStore *storage.BlacklistStore, id string) {
+	if err := blacklistStore.Remove(id); err != nil {
+		log.Fatalf("Failed to remove blacklist entry: %v", err)
+	}
+
+	fmt.Printf("Removed blacklist entry: %s\n", id)
 }
 
 func cmdAdd(store *storage.Store, name string, port int, targetHost string) {
