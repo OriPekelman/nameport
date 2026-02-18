@@ -118,7 +118,7 @@ func TestServiceDiscovered(t *testing.T) {
 	mock := &mockNotifier{available: true}
 	mgr := NewManager(DefaultConfig(), mock)
 
-	err := mgr.ServiceDiscovered("myapp", "3000")
+	err := mgr.ServiceDiscovered("myapp.localhost", 3000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestServiceRenamed(t *testing.T) {
 	mock := &mockNotifier{available: true}
 	mgr := NewManager(DefaultConfig(), mock)
 
-	err := mgr.ServiceRenamed("old-app", "new-app")
+	err := mgr.ServiceRenamed("old-app.localhost", "new-app.localhost")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestServiceDiscoveredFiltered(t *testing.T) {
 	cfg.EventFilter[EventServiceDiscovered] = false
 	mgr := NewManager(cfg, mock)
 
-	err := mgr.ServiceDiscovered("myapp", "3000")
+	err := mgr.ServiceDiscovered("myapp.localhost", 3000)
 	if err != nil {
 		t.Fatal(err)
 	}

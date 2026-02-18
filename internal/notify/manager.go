@@ -30,12 +30,12 @@ func (m *Manager) Notify(n Notification) error {
 }
 
 // ServiceDiscovered sends a notification that a new service has been found.
-func (m *Manager) ServiceDiscovered(name, port string) error {
+func (m *Manager) ServiceDiscovered(name string, port int) error {
 	return m.Notify(Notification{
 		Event:   EventServiceDiscovered,
 		Title:   "Service Discovered",
-		Message: fmt.Sprintf("%s is now available on port %s", name, port),
-		URL:     fmt.Sprintf("http://%s.localhost", name),
+		Message: fmt.Sprintf("%s is now available on port %d", name, port),
+		URL:     fmt.Sprintf("http://%s", name),
 	})
 }
 
@@ -54,6 +54,6 @@ func (m *Manager) ServiceRenamed(oldName, newName string) error {
 		Event:   EventServiceRenamed,
 		Title:   "Service Renamed",
 		Message: fmt.Sprintf("%s has been renamed to %s", oldName, newName),
-		URL:     fmt.Sprintf("http://%s.localhost", newName),
+		URL:     fmt.Sprintf("http://%s", newName),
 	})
 }

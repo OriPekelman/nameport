@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"localhost-magic/internal/naming"
+	"localhost-magic/internal/notify"
 	"localhost-magic/internal/storage"
 )
 
@@ -95,6 +96,12 @@ func main() {
 			os.Exit(1)
 		}
 		cmdRules(os.Args[2:])
+	case "notify":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify <status|enable|disable|events>\n")
+			os.Exit(1)
+		}
+		cmdNotify(os.Args[2:])
 	case "remove", "rm":
 		if len(os.Args) < 3 {
 			fmt.Fprintf(os.Stderr, "Usage: localhost-magic remove <name>\n")
@@ -148,6 +155,10 @@ func printUsage() {
 	fmt.Println("  localhost-magic rules import <file>           Import user rules from file")
 	fmt.Println("  localhost-magic remove <name>                  Remove a service entry")
 	fmt.Println("  localhost-magic add <name> [host:]<port>       Add manual service entry")
+	fmt.Println("  localhost-magic notify status                  Show notification config")
+	fmt.Println("  localhost-magic notify enable                  Enable notifications")
+	fmt.Println("  localhost-magic notify disable                 Disable notifications")
+	fmt.Println("  localhost-magic notify events <type> on|off    Toggle event type")
 	fmt.Println("  localhost-magic --config <path>               Use custom config path")
 	fmt.Println()
 	fmt.Println("Arguments:")
@@ -388,6 +399,95 @@ func cmdRules(args []string) {
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown rules command: %s\n", subCmd)
 		fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules <list|export|import> [file]\n")
+		os.Exit(1)
+	}
+}
+
+func cmdNotify(args []string) {
+	configPath := notify.DefaultConfigPath()
+	cfg, err := notify.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Failed to load notification config: %v", err)
+	}
+
+	subCmd := args[0]
+	switch subCmd {
+	case "status":
+		status := "disabled"
+		if cfg.Enabled {
+			status = "enabled"
+		}
+		fmt.Printf("Notifications: %s\n", status)
+		fmt.Printf("Config: %s\n", configPath)
+		fmt.Println()
+		fmt.Printf("%-25s %s\n", "EVENT", "STATUS")
+		fmt.Println(strings.Repeat("-", 40))
+		for _, e := range notify.AllEvents() {
+			eventStatus := "on"
+			if allowed, exists := cfg.EventFilter[e]; exists && !allowed {
+				eventStatus = "off"
+			}
+			fmt.Printf("%-25s %s\n", e, eventStatus)
+		}
+
+	case "enable":
+		cfg.Enabled = true
+		if err := notify.SaveConfig(configPath, cfg); err != nil {
+			log.Fatalf("Failed to save config: %v", err)
+		}
+		fmt.Println("Notifications enabled.")
+		fmt.Println("Note: Restart the daemon for changes to take effect.")
+
+	case "disable":
+		cfg.Enabled = false
+		if err := notify.SaveConfig(configPath, cfg); err != nil {
+			log.Fatalf("Failed to save config: %v", err)
+		}
+		fmt.Println("Notifications disabled.")
+		fmt.Println("Note: Restart the daemon for changes to take effect.")
+
+	case "events":
+		if len(args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify events <type> on|off\n")
+			fmt.Fprintf(os.Stderr, "\nEvent types:\n")
+			for _, e := range notify.AllEvents() {
+				fmt.Fprintf(os.Stderr, "  %s\n", e)
+			}
+			os.Exit(1)
+		}
+		eventType := notify.EventType(args[1])
+		toggle := args[2]
+
+		// Validate event type
+		valid := false
+		for _, e := range notify.AllEvents() {
+			if e == eventType {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			log.Fatalf("Unknown event type: %s", eventType)
+		}
+
+		switch toggle {
+		case "on":
+			cfg.EventFilter[eventType] = true
+		case "off":
+			cfg.EventFilter[eventType] = false
+		default:
+			log.Fatalf("Expected 'on' or 'off', got: %s", toggle)
+		}
+
+		if err := notify.SaveConfig(configPath, cfg); err != nil {
+			log.Fatalf("Failed to save config: %v", err)
+		}
+		fmt.Printf("Event %s set to %s.\n", eventType, toggle)
+		fmt.Println("Note: Restart the daemon for changes to take effect.")
+
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown notify command: %s\n", subCmd)
+		fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify <status|enable|disable|events>\n")
 		os.Exit(1)
 	}
 }

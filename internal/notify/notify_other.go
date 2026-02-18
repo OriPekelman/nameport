@@ -14,3 +14,8 @@ func (o *OtherNotifier) Send(n Notification) error {
 func (o *OtherNotifier) IsAvailable() bool {
 	return false
 }
+
+// NewPlatformNotifier returns the platform-specific notifier for unsupported platforms.
+func NewPlatformNotifier() Notifier {
+	return &OtherNotifier{}
+}

@@ -19,3 +19,8 @@ func (l *LinuxNotifier) IsAvailable() bool {
 	_, err := exec.LookPath("notify-send")
 	return err == nil
 }
+
+// NewPlatformNotifier returns the platform-specific notifier for Linux.
+func NewPlatformNotifier() Notifier {
+	return &LinuxNotifier{}
+}

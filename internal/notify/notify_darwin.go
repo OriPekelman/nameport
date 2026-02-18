@@ -21,3 +21,8 @@ func (d *DarwinNotifier) Send(n Notification) error {
 func (d *DarwinNotifier) IsAvailable() bool {
 	return true
 }
+
+// NewPlatformNotifier returns the platform-specific notifier for macOS.
+func NewPlatformNotifier() Notifier {
+	return &DarwinNotifier{}
+}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"localhost-magic/internal/naming"
+	"localhost-magic/internal/notify"
 	"localhost-magic/internal/portscan"
 	"localhost-magic/internal/probe"
 	"localhost-magic/internal/storage"
@@ -37,6 +38,7 @@ type Server struct {
 	store          *storage.Store
 	blacklistStore *storage.BlacklistStore
 	generator      *naming.Generator
+	notifyManager  *notify.Manager
 	services       map[string]*Service // key = name
 	mu             sync.RWMutex
 	pollInterval   time.Duration
@@ -61,11 +63,20 @@ func main() {
 		log.Fatalf("Failed to initialize blacklist store: %v", err)
 	}
 
+	// Initialize notification manager
+	notifyCfg, err := notify.LoadConfig(notify.DefaultConfigPath())
+	if err != nil {
+		log.Printf("Warning: failed to load notification config: %v (using defaults)", err)
+		notifyCfg = notify.DefaultConfig()
+	}
+	notifyMgr := notify.NewManager(notifyCfg, notify.NewPlatformNotifier())
+
 	// Create server
 	srv := &Server{
 		store:          store,
 		blacklistStore: blacklistStore,
 		generator:      naming.NewGenerator(),
+		notifyManager:  notifyMgr,
 		services:       make(map[string]*Service),
 		pollInterval:   2 * time.Second,
 	}
@@ -233,6 +244,10 @@ func (s *Server) discover() {
 
 		seenNames[name] = true
 		log.Printf("New service: %s -> 127.0.0.1:%d (%s)", name, listener.Port, listener.ExePath)
+
+		if err := s.notifyManager.ServiceDiscovered(name, listener.Port); err != nil {
+			log.Printf("Notification error: %v", err)
+		}
 	}
 
 	// Mark services as inactive if not seen
@@ -244,6 +259,10 @@ func (s *Server) discover() {
 				record.LastSeen = now
 				s.store.Save(record)
 				log.Printf("Service inactive: %s", name)
+
+				if err := s.notifyManager.ServiceOffline(name); err != nil {
+					log.Printf("Notification error: %v", err)
+				}
 			}
 		}
 	}

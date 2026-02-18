@@ -1,63 +1,89 @@
 # localhost-magic
 
-Automatically assign `.localhost` DNS names to HTTP services running on your machine.
+**Automatic `.localhost` DNS names for every HTTP service on your machine.**
+
+Start any local server, and it's instantly reachable at a human-friendly URL. No config files, no `/etc/hosts` edits, no DNS servers. Just run your service and open `http://myapp.localhost`.
 
 ![Dashboard](images/dashboard.png)
 
 ![commandline](images/commandline.png)
 
+## What It Does
+
+localhost-magic is a daemon + CLI that watches your machine for HTTP services, names them, and reverse-proxies them through port 80 with `.localhost` domains.
+
+```bash
+$ cd ~/projects/myapp && npm start     # listening on :3000
+# → http://myapp.localhost             (auto-discovered, auto-named)
+
+$ cd ~/work/api && flask run           # listening on :5000
+# → http://api.localhost               (named from directory)
+
+$ cd ~/projects/myapp && npm run dev   # listening on :3001
+# → http://myapp-1.localhost           (collision handled)
+```
+
+**It also handles services you don't run yourself** -- macOS apps, Docker containers, and remote machines all get names:
+
+```bash
+$ localhost-magic list
+NAME                    TARGET              PID     COMMAND
+ollama.localhost        127.0.0.1:11434     1033    /Applications/Ollama.app/...
+dropbox.localhost       127.0.0.1:17600     48354   /Applications/Dropbox.app/...
+api.localhost           127.0.0.1:3000      62138   node server.js
+neverssl.localhost      34.223.124.45:80    0       manual   # remote proxy
+```
+
 ## Quick Start
 
 ```bash
-# 1. Build
+# Build
 make
 
-# 2. Start the daemon (requires root for port 80)
+# Start the daemon (requires root for port 80)
 sudo ./localhost-magic-daemon
 
-# 3. Start a local HTTP server
-cd ~/projects/myapp
-python3 -m http.server 3000
+# Start any local HTTP server
+cd ~/projects/myapp && python3 -m http.server 3000
 
-# 4. Open in browser
+# Open in browser -- it just works
 open http://myapp.localhost
 
-# 5. View dashboard
+# See all discovered services
+./localhost-magic list
+
+# View the web dashboard
 open http://localhost/
-```
-
-## Overview
-
-`localhost-magic` monitors your system for HTTP services listening on any port and automatically assigns them human-readable `.localhost` domain names based on the project directory name.
-
-**Example:**
-```bash
-$ cd ~/projects/myapp && npm start
-# Automatically accessible at: http://myapp.localhost
-
-$ cd ~/work/api && python -m flask run
-# Automatically accessible at: http://api.localhost
-
-# If you start another service from the same directory:
-$ cd ~/projects/myapp && npm run dev
-# Gets: http://myapp-1.localhost
 ```
 
 ## Features
 
-- **Automatic Discovery**: Scans for listening TCP ports every 2 seconds
-- **HTTP Detection**: Verifies services actually speak HTTP before proxying
-- **Smart Naming**: Extracts project names from directory paths, macOS apps, and working directories
-- **Collision Handling**: Automatically appends `-1`, `-2`, etc. for conflicts
-- **Persistent Names**: Remembers your custom renames across restarts
-- **Service Lifecycle**: Keep services in dashboard even when not running
-- **Web Dashboard**: Beautiful management interface at http://localhost/
-- **Health Monitoring**: Real-time status indicators (200/404/500/offline)
-- **Remote Target Proxying**: Proxy to Docker containers or other machines on your network
-- **Customizable Naming Rules**: Data-driven JSON naming rules with user overrides
-- **Persistent Blacklist**: Block services by PID, path, or regex pattern
-- **Docker Discovery**: Auto-detect containers with exposed ports
-- **No DNS Server Needed**: Uses `.localhost` TLD which browsers auto-resolve to 127.0.0.1
+### Discovery & Proxying
+- **Automatic service discovery** -- scans for listening TCP ports every 2 seconds
+- **HTTP verification** -- only proxies services that actually speak HTTP
+- **Smart naming** -- 17 built-in rules extract names from project directories, macOS app bundles, script paths, and working directories
+- **Collision handling** -- `myapp.localhost`, `myapp-1.localhost`, `myapp-2.localhost`
+- **Remote target proxying** -- proxy to Docker containers, VMs, or machines on your LAN
+- **Docker container detection** -- auto-discovers containers with exposed ports
+- **No DNS server needed** -- `.localhost` is an IANA-reserved TLD that browsers resolve to `127.0.0.1`
+
+### Management
+- **Web dashboard** at `http://localhost/` with real-time health status, rename, keep, and blacklist controls
+- **CLI** for all operations: `list`, `rename`, `keep`, `add`, `remove`, `blacklist`, `rules`, `notify`
+- **Persistent names** -- custom renames survive daemon restarts
+- **Keep mode** -- pin services in the dashboard even when they're offline
+- **Persistent blacklist** -- block services by PID, executable path, or regex pattern
+- **Customizable naming rules** -- data-driven JSON rules with user overrides and priority ordering
+
+### Notifications
+- **Desktop notifications** for service discovered, offline, and renamed events (macOS and Linux)
+- **Per-event filtering** -- enable/disable individual notification types
+- **Persistent config** at `~/.config/localhost-magic/notify.json`
+
+### Security
+- **Two-tier TLS certificate authority** -- Ed25519 root CA with ECDSA intermediate, ready for local HTTPS
+- **Domain policy enforcement** -- CA only issues certs for safe TLDs (`.localhost`, `.test`, `.internal`), blocks all IANA public TLDs
+- **systemd/launchd integration** -- auto-start support for production-like setups
 
 ## Architecture
 
@@ -161,6 +187,15 @@ Manage naming rules:
 ./localhost-magic rules list                             # Show active rules with priority
 ./localhost-magic rules export                           # Export rules as JSON
 ./localhost-magic rules import my-rules.json             # Import custom rules
+```
+
+Manage notifications:
+```bash
+./localhost-magic notify status                          # Show notification config
+./localhost-magic notify enable                          # Enable notifications
+./localhost-magic notify disable                         # Disable notifications
+./localhost-magic notify events service_offline off      # Disable specific event type
+./localhost-magic notify events service_discovered on    # Re-enable specific event type
 ```
 
 ### Web Dashboard
