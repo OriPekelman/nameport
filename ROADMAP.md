@@ -38,7 +38,7 @@ type ServiceRecord struct {
 
 These items strengthen the existing codebase without adding new user-facing features. They unblock every later milestone.
 
-### 1.1 Persistent Blacklist Configuration
+### 1.1 Persistent Blacklist Configuration ✅
 
 **Problem**: Blacklist is currently in-memory only; it resets on daemon restart.
 
