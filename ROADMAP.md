@@ -232,7 +232,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 2.4 Domain Policy (`internal/tls/policy`)
+### 2.4 Domain Policy (`internal/tls/policy`) ✅
 
 **Problem**: Must prevent the local CA from issuing certs for real domains.
 
