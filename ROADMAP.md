@@ -66,7 +66,7 @@ These items strengthen the existing codebase without adding new user-facing feat
 
 ---
 
-### 1.2 Naming Heuristics as Data
+### 1.2 Naming Heuristics as Data ✅
 
 **Problem**: Name generation heuristics are hardcoded. Users cannot customize them, and growing the defaults means growing `names.go` into an unmaintainable file.
 

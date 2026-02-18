@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"localhost-magic/internal/naming"
 	"localhost-magic/internal/storage"
 )
 
@@ -61,6 +63,12 @@ func main() {
 			os.Exit(1)
 		}
 		cmdBlacklist(os.Args[2], os.Args[3])
+	case "rules":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules <list|export|import> [file]\n")
+			os.Exit(1)
+		}
+		cmdRules(os.Args[2:])
 	case "add":
 		if len(os.Args) < 4 {
 			fmt.Fprintf(os.Stderr, "Usage: localhost-magic add <name> [host:]<port>\n")
@@ -101,6 +109,9 @@ func printUsage() {
 	fmt.Println("  localhost-magic rename <old> <new>            Rename a service")
 	fmt.Println("  localhost-magic keep <name> [true|false]      Toggle keep status (default: true)")
 	fmt.Println("  localhost-magic blacklist <type> <value>      Add to blacklist")
+	fmt.Println("  localhost-magic rules list                      List naming rules")
+	fmt.Println("  localhost-magic rules export                    Export rules as JSON")
+	fmt.Println("  localhost-magic rules import <file>             Import user rules from file")
 	fmt.Println("  localhost-magic add <name> [host:]<port>       Add manual service entry")
 	fmt.Println("  localhost-magic --config <path>               Use custom config path")
 	fmt.Println()
@@ -244,4 +255,65 @@ func cmdAdd(store *storage.Store, name string, port int, targetHost string) {
 	fmt.Printf("Added manual service: %s -> %s:%d\n", record.Name, record.EffectiveTargetHost(), record.Port)
 	fmt.Println("Note: This service will be kept even when not running.")
 	fmt.Println("      Restart the daemon to activate the proxy.")
+}
+
+func cmdRules(args []string) {
+	subCmd := args[0]
+	engine := naming.NewRuleEngine()
+
+	switch subCmd {
+	case "list":
+		rules := engine.Rules()
+		fmt.Printf("%-25s %-8s %s\n", "ID", "PRIORITY", "DESCRIPTION")
+		fmt.Println(strings.Repeat("-", 80))
+		for _, r := range rules {
+			fmt.Printf("%-25s %-8d %s\n", r.ID, r.Priority, r.Description)
+		}
+		fmt.Printf("\n%d rules loaded (user overrides: %s)\n", len(rules), naming.UserRulesPath())
+
+	case "export":
+		data, err := engine.ExportRulesJSON()
+		if err != nil {
+			log.Fatalf("Failed to export rules: %v", err)
+		}
+		fmt.Println(string(data))
+
+	case "import":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules import <file>\n")
+			os.Exit(1)
+		}
+		srcFile := args[1]
+
+		// Validate the source file is valid JSON rules
+		_, err := naming.LoadUserRules(srcFile)
+		if err != nil {
+			log.Fatalf("Invalid rules file: %v", err)
+		}
+
+		// Read source
+		data, err := os.ReadFile(srcFile)
+		if err != nil {
+			log.Fatalf("Failed to read file: %v", err)
+		}
+
+		// Ensure destination directory exists
+		destPath := naming.UserRulesPath()
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			log.Fatalf("Failed to create config directory: %v", err)
+		}
+
+		// Write to user config
+		if err := os.WriteFile(destPath, data, 0644); err != nil {
+			log.Fatalf("Failed to write user rules: %v", err)
+		}
+
+		fmt.Printf("Imported rules to %s\n", destPath)
+		fmt.Println("Note: Rules will take effect on next daemon restart.")
+
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown rules command: %s\n", subCmd)
+		fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules <list|export|import> [file]\n")
+		os.Exit(1)
+	}
 }

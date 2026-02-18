@@ -255,20 +255,45 @@ func isGenericDir(name string) bool {
 
 // Generator creates stable names from process information
 type Generator struct {
-	usedNames map[string]bool // Tracks which names are in use
+	usedNames  map[string]bool // Tracks which names are in use
+	ruleEngine *RuleEngine     // Data-driven naming rules
 }
 
-// NewGenerator creates a new name generator
+// NewGenerator creates a new name generator with a RuleEngine
 func NewGenerator() *Generator {
 	return &Generator{
-		usedNames: make(map[string]bool),
+		usedNames:  make(map[string]bool),
+		ruleEngine: NewRuleEngine(),
 	}
+}
+
+// NewGeneratorWithEngine creates a new name generator with a specific RuleEngine
+func NewGeneratorWithEngine(engine *RuleEngine) *Generator {
+	return &Generator{
+		usedNames:  make(map[string]bool),
+		ruleEngine: engine,
+	}
+}
+
+// RuleEngine returns the generator's rule engine
+func (g *Generator) RuleEngine() *RuleEngine {
+	return g.ruleEngine
 }
 
 // GenerateName creates a .localhost name from an executable path
 // Handles collisions by appending -1, -2, etc.
 func (g *Generator) GenerateName(exePath string, cwd string, args []string) string {
-	baseName := ExtractBaseName(exePath, cwd, args)
+	// Try data-driven rules first
+	baseName := ""
+	if g.ruleEngine != nil {
+		baseName = g.ruleEngine.Match(exePath, cwd, args, 0)
+	}
+
+	// Fall back to hardcoded heuristics for edge cases
+	if baseName == "" {
+		baseName = ExtractBaseName(exePath, cwd, args)
+	}
+
 	cleaned := SanitizeName(baseName)
 
 	// Try the base name first

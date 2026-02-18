@@ -1,0 +1,135 @@
+[
+  {
+    "id": "app-bundle",
+    "description": "macOS .app bundle: extract application name",
+    "priority": 10,
+    "exe_pattern": "\\.app/Contents/MacOS/",
+    "name_source": "app_bundle",
+    "name_regex": "/([^/]+)\\.app/"
+  },
+  {
+    "id": "node-script",
+    "description": "Node.js running a script with a directory path",
+    "priority": 20,
+    "exe_pattern": "(^|/)node(js)?$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "python-script",
+    "description": "Python running a script with a directory path",
+    "priority": 20,
+    "exe_pattern": "(^|/)python[0-9]*$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "ruby-script",
+    "description": "Ruby running a script with a directory path",
+    "priority": 20,
+    "exe_pattern": "(^|/)ruby$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "perl-script",
+    "description": "Perl running a script with a directory path",
+    "priority": 20,
+    "exe_pattern": "(^|/)perl$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "php-script",
+    "description": "PHP running a script with a directory path",
+    "priority": 20,
+    "exe_pattern": "(^|/)php$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "java-script",
+    "description": "Java running with a directory-based classpath",
+    "priority": 20,
+    "exe_pattern": "(^|/)java$",
+    "arg_pattern": "[/.].*[/\\\\]",
+    "name_source": "arg",
+    "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
+  },
+  {
+    "id": "python-http-server",
+    "description": "Python http.server module: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)python[0-9]*$",
+    "arg_pattern": "(^|\\s)(http\\.server|-mhttp\\.server)",
+    "name_source": "cwd"
+  },
+  {
+    "id": "serve-cwd",
+    "description": "serve tool: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)serve$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "http-server-cwd",
+    "description": "http-server tool: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)http-server$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "hs-cwd",
+    "description": "hs (http-server shorthand): use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)hs$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "npx-cwd",
+    "description": "npx: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)npx$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "live-server-cwd",
+    "description": "live-server: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)live-server$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "browser-sync-cwd",
+    "description": "browser-sync: use working directory name",
+    "priority": 15,
+    "exe_pattern": "(^|/)browser-sync$",
+    "name_source": "cwd"
+  },
+  {
+    "id": "node-no-script-cwd",
+    "description": "Node.js with no script path (flags only): use working directory name",
+    "priority": 16,
+    "exe_pattern": "(^|/)node(js)?$",
+    "arg_pattern": "^$|^-",
+    "name_source": "cwd"
+  },
+  {
+    "id": "system-binary",
+    "description": "System binary in /usr/bin, /bin, /sbin: use executable name",
+    "priority": 90,
+    "exe_pattern": "^/(usr/)?(s?bin)/",
+    "name_source": "exe"
+  },
+  {
+    "id": "parent-dir",
+    "description": "Fallback: use parent directory of executable",
+    "priority": 100,
+    "name_source": "parent_dir"
+  }
+]
