@@ -1,7 +1,8 @@
 package ca
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -219,8 +220,8 @@ func TestSignCertificate(t *testing.T) {
 		t.Fatalf("Init: %v", err)
 	}
 
-	// Generate a leaf key.
-	leafPub, _, err := ed25519.GenerateKey(rand.Reader)
+	// Generate a leaf key (ECDSA P-256).
+	leafKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("generate leaf key: %v", err)
 	}
@@ -239,7 +240,7 @@ func TestSignCertificate(t *testing.T) {
 		},
 	}
 
-	certPEM, err := c.SignCertificate(template, leafPub)
+	certPEM, err := c.SignCertificate(template, &leafKey.PublicKey)
 	if err != nil {
 		t.Fatalf("SignCertificate: %v", err)
 	}
@@ -280,7 +281,7 @@ func TestSignCertificate_WithSerialNumber(t *testing.T) {
 		t.Fatalf("Init: %v", err)
 	}
 
-	leafPub, _, _ := ed25519.GenerateKey(rand.Reader)
+	leafKey, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 
 	customSerial := big.NewInt(42)
 	template := &x509.Certificate{
@@ -291,7 +292,7 @@ func TestSignCertificate_WithSerialNumber(t *testing.T) {
 		NotAfter:     time.Now().Add(time.Hour),
 	}
 
-	certPEM, err := c.SignCertificate(template, leafPub)
+	certPEM, err := c.SignCertificate(template, &leafKey.PublicKey)
 	if err != nil {
 		t.Fatalf("SignCertificate: %v", err)
 	}
@@ -327,17 +328,17 @@ func TestNewCA_CreatesStorePath(t *testing.T) {
 	}
 }
 
-func TestEdKeysUsed(t *testing.T) {
+func TestECDSAKeysUsed(t *testing.T) {
 	dir := t.TempDir()
 	c, _ := NewCA(dir)
 	if err := c.Init(); err != nil {
 		t.Fatalf("Init: %v", err)
 	}
 
-	if _, ok := c.RootKey.(ed25519.PrivateKey); !ok {
-		t.Errorf("root key type = %T, want ed25519.PrivateKey", c.RootKey)
+	if _, ok := c.RootKey.(*ecdsa.PrivateKey); !ok {
+		t.Errorf("root key type = %T, want *ecdsa.PrivateKey", c.RootKey)
 	}
-	if _, ok := c.InterKey.(ed25519.PrivateKey); !ok {
-		t.Errorf("intermediate key type = %T, want ed25519.PrivateKey", c.InterKey)
+	if _, ok := c.InterKey.(*ecdsa.PrivateKey); !ok {
+		t.Errorf("intermediate key type = %T, want *ecdsa.PrivateKey", c.InterKey)
 	}
 }

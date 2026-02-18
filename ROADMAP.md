@@ -184,13 +184,13 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 **Cryptography choices**:
 
-| Item             | Choice                        |
-|------------------|-------------------------------|
-| Root key         | Ed25519                       |
-| Intermediate key | Ed25519                       |
-| Leaf key         | ECDSA P-256 (browser-fastest) |
-| Signature        | Ed25519                       |
-| Hash             | SHA-256                       |
+| Item             | Choice                                         |
+|------------------|-------------------------------------------------|
+| Root key         | ECDSA P-256 (universal browser compatibility)   |
+| Intermediate key | ECDSA P-256                                     |
+| Leaf key         | ECDSA P-256                                     |
+| Signature        | ECDSA with SHA-256                              |
+| Hash             | SHA-256                                         |
 
 **New package**: `internal/tls/ca`
 

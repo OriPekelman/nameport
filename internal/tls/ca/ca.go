@@ -1,10 +1,12 @@
 // Package ca implements a two-tier certificate authority with a long-lived
-// root and a shorter-lived intermediate, both using Ed25519 keys.
+// root and a shorter-lived intermediate, both using ECDSA P-256 keys for
+// maximum browser compatibility.
 package ca
 
 import (
 	"crypto"
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -78,8 +80,8 @@ func (ca *CA) Init() error {
 		return errors.New("ca: already initialised")
 	}
 
-	// --- Root CA ---
-	rootPub, rootPriv, err := ed25519.GenerateKey(rand.Reader)
+	// --- Root CA (ECDSA P-256) ---
+	rootPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("ca: generate root key: %w", err)
 	}
@@ -102,7 +104,7 @@ func (ca *CA) Init() error {
 		IsCA:                  true,
 	}
 
-	rootDER, err := x509.CreateCertificate(rand.Reader, rootTemplate, rootTemplate, rootPub, rootPriv)
+	rootDER, err := x509.CreateCertificate(rand.Reader, rootTemplate, rootTemplate, &rootPriv.PublicKey, rootPriv)
 	if err != nil {
 		return fmt.Errorf("ca: create root cert: %w", err)
 	}
@@ -112,8 +114,8 @@ func (ca *CA) Init() error {
 		return fmt.Errorf("ca: parse root cert: %w", err)
 	}
 
-	// --- Intermediate CA ---
-	interPub, interPriv, err := ed25519.GenerateKey(rand.Reader)
+	// --- Intermediate CA (ECDSA P-256) ---
+	interPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("ca: generate intermediate key: %w", err)
 	}
@@ -137,7 +139,7 @@ func (ca *CA) Init() error {
 		MaxPathLenZero:        true,
 	}
 
-	interDER, err := x509.CreateCertificate(rand.Reader, interTemplate, rootCert, interPub, rootPriv)
+	interDER, err := x509.CreateCertificate(rand.Reader, interTemplate, rootCert, &interPriv.PublicKey, rootPriv)
 	if err != nil {
 		return fmt.Errorf("ca: create intermediate cert: %w", err)
 	}
@@ -189,7 +191,7 @@ func (ca *CA) RotateIntermediate() error {
 		return errors.New("ca: not initialised")
 	}
 
-	interPub, interPriv, err := ed25519.GenerateKey(rand.Reader)
+	interPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return fmt.Errorf("ca: generate intermediate key: %w", err)
 	}
@@ -214,7 +216,7 @@ func (ca *CA) RotateIntermediate() error {
 		MaxPathLenZero:        true,
 	}
 
-	der, err := x509.CreateCertificate(rand.Reader, template, ca.RootCert, interPub, ca.RootKey)
+	der, err := x509.CreateCertificate(rand.Reader, template, ca.RootCert, &interPriv.PublicKey, ca.RootKey)
 	if err != nil {
 		return fmt.Errorf("ca: create intermediate cert: %w", err)
 	}
@@ -268,7 +270,7 @@ func (ca *CA) SignCertificate(template *x509.Certificate, pub crypto.PublicKey) 
 // helpers
 // ---------------------------------------------------------------------------
 
-func (ca *CA) persist(rootCert *x509.Certificate, rootKey ed25519.PrivateKey, interCert *x509.Certificate, interKey ed25519.PrivateKey) error {
+func (ca *CA) persist(rootCert *x509.Certificate, rootKey crypto.PrivateKey, interCert *x509.Certificate, interKey crypto.PrivateKey) error {
 	if err := writeFileAtomic(filepath.Join(ca.StorePath, "root_ca.pem"), encodeCertPEM(rootCert), 0644); err != nil {
 		return err
 	}
@@ -291,10 +293,9 @@ func encodeCertPEM(cert *x509.Certificate) []byte {
 	})
 }
 
-func encodeKeyPEM(key ed25519.PrivateKey) []byte {
+func encodeKeyPEM(key crypto.PrivateKey) []byte {
 	der, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		// Ed25519 marshalling should never fail.
 		panic("ca: marshal key: " + err.Error())
 	}
 	return pem.EncodeToMemory(&pem.Block{
