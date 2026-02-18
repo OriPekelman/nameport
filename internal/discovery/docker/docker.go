@@ -153,7 +153,7 @@ func parseContainers(containers []containerJSON) []ContainerService {
 			}
 
 			// Override name from label if present.
-			if labelName, ok := c.Labels["localhost-magic.name"]; ok && labelName != "" {
+			if labelName, ok := c.Labels["nameport.name"]; ok && labelName != "" {
 				svc.ContainerName = labelName
 			}
 

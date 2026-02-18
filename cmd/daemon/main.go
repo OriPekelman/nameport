@@ -18,15 +18,15 @@ import (
 	"syscall"
 	"time"
 
-	"localhost-magic/internal/naming"
-	"localhost-magic/internal/notify"
-	"localhost-magic/internal/portscan"
-	"localhost-magic/internal/probe"
-	"localhost-magic/internal/storage"
-	"localhost-magic/internal/tls/ca"
-	"localhost-magic/internal/tls/issuer"
-	"localhost-magic/internal/tls/policy"
-	"localhost-magic/internal/tls/trust"
+	"nameport/internal/naming"
+	"nameport/internal/notify"
+	"nameport/internal/portscan"
+	"nameport/internal/probe"
+	"nameport/internal/storage"
+	"nameport/internal/tls/ca"
+	"nameport/internal/tls/issuer"
+	"nameport/internal/tls/policy"
+	"nameport/internal/tls/trust"
 )
 
 // Service represents a discovered HTTP service
@@ -178,7 +178,7 @@ func main() {
 		if !srv.tlsTrustor.IsInstalled(tlsCA.RootCertPEM()) {
 			if srv.tlsTrustor.NeedsElevation() {
 				log.Println("WARNING: Root CA is not trusted by the OS.")
-				log.Println("  Run 'sudo localhost-magic tls init' to install the CA into the system trust store.")
+				log.Println("  Run 'sudo nameport tls init' to install the CA into the system trust store.")
 				log.Println("  HTTPS will work but browsers will show certificate warnings.")
 			} else {
 				log.Println("Installing root CA into system trust store...")
@@ -227,7 +227,7 @@ func main() {
 	mux.HandleFunc("/api/blacklist", srv.handleAPIBlacklist)
 	mux.HandleFunc("/api/keep", srv.handleAPIKeep)
 
-	log.Println("localhost-magic daemon starting...")
+	log.Println("nameport daemon starting...")
 	log.Printf("Storage: %s", storePath)
 	if highPort {
 		log.Printf("Running in high-port mode (no root required)")
@@ -884,7 +884,7 @@ const dashboardHTML = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>localhost-magic</title>
+    <title>nameport</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {

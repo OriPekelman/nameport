@@ -41,8 +41,8 @@ func TestInit(t *testing.T) {
 	}
 
 	// Root certificate checks.
-	if c.RootCert.Subject.CommonName != "localhost-magic Root CA" {
-		t.Errorf("root CN = %q, want %q", c.RootCert.Subject.CommonName, "localhost-magic Root CA")
+	if c.RootCert.Subject.CommonName != "nameport Root CA" {
+		t.Errorf("root CN = %q, want %q", c.RootCert.Subject.CommonName, "nameport Root CA")
 	}
 	if !c.RootCert.IsCA {
 		t.Error("root cert is not CA")
@@ -59,7 +59,7 @@ func TestInit(t *testing.T) {
 	}
 
 	// Intermediate certificate checks.
-	if c.InterCert.Subject.CommonName != "localhost-magic Intermediate CA" {
+	if c.InterCert.Subject.CommonName != "nameport Intermediate CA" {
 		t.Errorf("inter CN = %q", c.InterCert.Subject.CommonName)
 	}
 	if !c.InterCert.IsCA {

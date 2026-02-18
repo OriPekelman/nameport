@@ -236,7 +236,7 @@ func TestParseContainers_ComposeLabels(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// localhost-magic.name label override
+// nameport.name label override
 // ---------------------------------------------------------------------------
 
 func TestParseContainers_NameLabel(t *testing.T) {
@@ -245,7 +245,7 @@ func TestParseContainers_NameLabel(t *testing.T) {
 		"Names": ["/boring-container-name"],
 		"Image": "myimage",
 		"Labels": {
-			"localhost-magic.name": "cool-api"
+			"nameport.name": "cool-api"
 		},
 		"Ports": [
 			{"IP": "0.0.0.0", "PrivatePort": 8000, "PublicPort": 8000, "Type": "tcp"}
@@ -363,7 +363,7 @@ func TestScan_FakeDaemon(t *testing.T) {
 		"Id": "aaa111",
 		"Names": ["/test-svc"],
 		"Image": "testimg",
-		"Labels": {"localhost-magic.name": "my-svc", "com.docker.compose.project": "proj"},
+		"Labels": {"nameport.name": "my-svc", "com.docker.compose.project": "proj"},
 		"Ports": [{"IP":"0.0.0.0","PrivatePort":80,"PublicPort":9090,"Type":"tcp"}],
 		"NetworkSettings": {"Networks": {"bridge": {"IPAddress": "172.17.0.99"}}}
 	}]`

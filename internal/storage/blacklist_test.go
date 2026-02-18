@@ -218,11 +218,11 @@ func TestIsBlacklistedOwnExecutable(t *testing.T) {
 		t.Fatalf("NewBlacklistStore failed: %v", err)
 	}
 
-	if !bs.IsBlacklisted("/usr/local/bin/localhost-magic-daemon", nil) {
-		t.Error("expected localhost-magic-daemon to be blacklisted")
+	if !bs.IsBlacklisted("/usr/local/bin/nameport-daemon", nil) {
+		t.Error("expected nameport-daemon to be blacklisted")
 	}
-	if !bs.IsBlacklisted("/usr/local/bin/localhost-magic", nil) {
-		t.Error("expected localhost-magic to be blacklisted")
+	if !bs.IsBlacklisted("/usr/local/bin/nameport", nil) {
+		t.Error("expected nameport to be blacklisted")
 	}
 }
 

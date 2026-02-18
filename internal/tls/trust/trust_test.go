@@ -116,7 +116,7 @@ func TestIsInstalledWithoutInstall(t *testing.T) {
 	if tr.IsInstalled(certPEM) {
 		// This is not necessarily wrong (if the real CA is installed),
 		// so we just log rather than fail.
-		t.Log("IsInstalled returned true; the localhost-magic CA may already be installed on this system")
+		t.Log("IsInstalled returned true; the nameport CA may already be installed on this system")
 	}
 }
 

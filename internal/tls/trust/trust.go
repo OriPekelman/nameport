@@ -1,4 +1,4 @@
-// Package trust manages installation and removal of the localhost-magic root
+// Package trust manages installation and removal of the nameport root
 // CA certificate in the operating system's trust store.
 package trust
 
@@ -10,7 +10,7 @@ import (
 )
 
 // certCommonName is the CN used to identify our root CA in the trust store.
-const certCommonName = "localhost-magic Root CA"
+const certCommonName = "nameport Root CA"
 
 // Trustor manages OS trust store operations for the root CA certificate.
 type Trustor interface {

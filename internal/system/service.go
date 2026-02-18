@@ -8,7 +8,7 @@ type ServiceStatus struct {
 }
 
 // ServiceManager provides an interface for installing, uninstalling,
-// and managing the localhost-magic daemon as a system service.
+// and managing the nameport daemon as a system service.
 type ServiceManager interface {
 	// Install registers the daemon as a system service using the given daemon binary path.
 	Install(daemonPath string) error

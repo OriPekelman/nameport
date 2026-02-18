@@ -33,13 +33,13 @@ var builtinBlacklistedPaths = []string{
 
 // builtinBlacklistedNames contains executable names that are always blacklisted
 var builtinBlacklistedNames = []string{
-	"localhost-magic-daemon",
-	"localhost-magic",
+	"nameport-daemon",
+	"nameport",
 }
 
 // builtinBlacklistedPatterns contains name patterns that are always blacklisted
 var builtinBlacklistedPatterns = []string{
-	`^localhost-magic`,
+	`^nameport`,
 }
 
 // interpreters is the list of known language interpreters
@@ -149,7 +149,7 @@ func (bs *BlacklistStore) IsBlacklisted(exePath string, args []string) bool {
 	// Check built-in rules first
 
 	// Check own executable
-	if strings.Contains(exePath, "localhost-magic-daemon") || strings.Contains(exePath, "localhost-magic") {
+	if strings.Contains(exePath, "nameport-daemon") || strings.Contains(exePath, "nameport") {
 		return true
 	}
 
@@ -235,7 +235,7 @@ func DefaultBlacklistPath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "localhost-magic", "blacklist.json")
+	return filepath.Join(home, ".config", "nameport", "blacklist.json")
 }
 
 // load reads blacklist entries from disk

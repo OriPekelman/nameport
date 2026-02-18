@@ -1,16 +1,18 @@
-# localhost-magic
+# nameport
 
 **Automatic `.localhost` DNS names for every HTTP service on your machine.**
 
 Start any local server, and it's instantly reachable at a human-friendly URL. No config files, no `/etc/hosts` edits, no DNS servers. Just run your service and open `http://myapp.localhost`.
 
-![Dashboard](images/dashboard.png)
+Inspired by [dns-to-port](https://github.com/FlorianMargworthy) by Florian Margaine. See [COMPARISON.md](COMPARISON.md) for a detailed comparison.
 
-![commandline](images/commandline.png)
+Website: [nameport.eu](https://nameport.eu)
+
+![nameport](images/nameport-logo.jpg)
 
 ## What It Does
 
-localhost-magic is a daemon + CLI that watches your machine for HTTP services, names them, and reverse-proxies them through port 80 with `.localhost` domains.
+nameport is a daemon + CLI that watches your machine for HTTP services, names them, and reverse-proxies them through port 80 with `.localhost` domains.
 
 ```bash
 $ cd ~/projects/myapp && npm start     # listening on :3000
@@ -26,7 +28,7 @@ $ cd ~/projects/myapp && npm run dev   # listening on :3001
 **It also handles services you don't run yourself** -- macOS apps, Docker containers, and remote machines all get names:
 
 ```bash
-$ localhost-magic list
+$ nameport list
 NAME                    TARGET              PID     COMMAND
 ollama.localhost        127.0.0.1:11434     1033    /Applications/Ollama.app/...
 dropbox.localhost       127.0.0.1:17600     48354   /Applications/Dropbox.app/...
@@ -41,7 +43,7 @@ neverssl.localhost      34.223.124.45:80    0       manual   # remote proxy
 make
 
 # Start the daemon (requires root for port 80)
-sudo ./localhost-magic-daemon
+sudo ./nameport-daemon
 
 # Start any local HTTP server
 cd ~/projects/myapp && python3 -m http.server 3000
@@ -50,7 +52,7 @@ cd ~/projects/myapp && python3 -m http.server 3000
 open http://myapp.localhost
 
 # See all discovered services
-./localhost-magic list
+./nameport list
 
 # View the web dashboard
 open http://localhost/
@@ -64,7 +66,7 @@ open http://localhost/
 - **Smart naming** -- 17 built-in rules extract names from project directories, macOS app bundles, script paths, and working directories
 - **Collision handling** -- `myapp.localhost`, `myapp-1.localhost`, `myapp-2.localhost`
 - **Remote target proxying** -- proxy to Docker containers, VMs, or machines on your LAN
-- **Docker container detection** -- auto-discovers containers with exposed ports
+- **Docker container detection** -- auto-discovers containers with exposed ports; use the `nameport.name` Docker label to set a custom name
 - **No DNS server needed** -- `.localhost` is an IANA-reserved TLD that browsers resolve to `127.0.0.1`
 
 ### Management
@@ -78,18 +80,20 @@ open http://localhost/
 ### Notifications
 - **Desktop notifications** for service discovered, offline, and renamed events (macOS and Linux)
 - **Per-event filtering** -- enable/disable individual notification types
-- **Persistent config** at `~/.config/localhost-magic/notify.json`
+- **Persistent config** at `~/.config/nameport/notify.json`
+- **Notification app name**: `nameport`
 
 ### Security
-- **Two-tier TLS certificate authority** -- Ed25519 root CA with ECDSA intermediate, ready for local HTTPS
+- **Two-tier TLS certificate authority** -- "nameport Root CA" with "nameport Intermediate CA" (ECDSA P-256), ready for local HTTPS
 - **Domain policy enforcement** -- CA only issues certs for safe TLDs (`.localhost`, `.test`, `.internal`), blocks all IANA public TLDs
+- **Trust store integration** -- installs as `nameport.crt` (Debian) or `nameport.pem` (Fedora)
 - **systemd/launchd integration** -- auto-start support for production-like setups
 
 ## Architecture
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Browser       │────▶│  localhost-magic │────▶│  Your Service   │
+│   Browser       │────▶│    nameport      │────▶│  Your Service   │
 │  (myapp.local)  │     │  (reverse proxy  │     │  (port 3000)    │
 │                 │◀────│   on port 80)    │◀────│                 │
 └─────────────────┘     └──────────────────┘     └─────────────────┘
@@ -123,10 +127,10 @@ make clean
 
 ```bash
 # Build daemon
-go build -o localhost-magic-daemon ./cmd/daemon
+go build -o nameport-daemon ./cmd/daemon
 
 # Build CLI
-go build -o localhost-magic ./cmd/cli
+go build -o nameport ./cmd/cli
 ```
 
 ## Usage
@@ -136,66 +140,66 @@ go build -o localhost-magic ./cmd/cli
 The daemon must run as root to bind port 80:
 
 ```bash
-sudo ./localhost-magic-daemon
+sudo ./nameport-daemon
 ```
 
 Optional: specify custom config path:
 ```bash
-sudo ./localhost-magic-daemon /path/to/services.json
+sudo ./nameport-daemon /path/to/services.json
 ```
 
 ### Manage Services via CLI
 
 List all discovered services:
 ```bash
-./localhost-magic list
+./nameport list
 ```
 
 Rename a service:
 ```bash
-./localhost-magic rename myapp.localhost api.localhost
+./nameport rename myapp.localhost api.localhost
 ```
 
 Toggle keep status (persist service even when not running):
 ```bash
-./localhost-magic keep myapp.localhost         # Enable keep
-./localhost-magic keep myapp.localhost false   # Disable keep
+./nameport keep myapp.localhost         # Enable keep
+./nameport keep myapp.localhost false   # Disable keep
 ```
 
 Add a manual service entry (for services not currently running):
 ```bash
-./localhost-magic add staging.localhost 8080
+./nameport add staging.localhost 8080
 ```
 
 Add a service targeting a remote host (Docker container, another machine on the LAN, etc.):
 ```bash
-./localhost-magic add myapp.localhost 192.168.0.1:3000
-./localhost-magic add docker-app.localhost 172.17.0.2:8080
+./nameport add myapp.localhost 192.168.0.1:3000
+./nameport add docker-app.localhost 172.17.0.2:8080
 ```
 
 Blacklist services:
 ```bash
-./localhost-magic blacklist pid 12345                    # By PID
-./localhost-magic blacklist path /usr/sbin/cupsd         # By executable path
-./localhost-magic blacklist pattern "^localhost-magic"   # By regex pattern
-./localhost-magic blacklist list                         # List all user blacklist entries
-./localhost-magic blacklist remove <id>                  # Remove a blacklist entry
+./nameport blacklist pid 12345                    # By PID
+./nameport blacklist path /usr/sbin/cupsd         # By executable path
+./nameport blacklist pattern "^nameport"          # By regex pattern
+./nameport blacklist list                         # List all user blacklist entries
+./nameport blacklist remove <id>                  # Remove a blacklist entry
 ```
 
 Manage naming rules:
 ```bash
-./localhost-magic rules list                             # Show active rules with priority
-./localhost-magic rules export                           # Export rules as JSON
-./localhost-magic rules import my-rules.json             # Import custom rules
+./nameport rules list                             # Show active rules with priority
+./nameport rules export                           # Export rules as JSON
+./nameport rules import my-rules.json             # Import custom rules
 ```
 
 Manage notifications:
 ```bash
-./localhost-magic notify status                          # Show notification config
-./localhost-magic notify enable                          # Enable notifications
-./localhost-magic notify disable                         # Disable notifications
-./localhost-magic notify events service_offline off      # Disable specific event type
-./localhost-magic notify events service_discovered on    # Re-enable specific event type
+./nameport notify status                          # Show notification config
+./nameport notify enable                          # Enable notifications
+./nameport notify disable                         # Disable notifications
+./nameport notify events service_offline off      # Disable specific event type
+./nameport notify events service_discovered on    # Re-enable specific event type
 ```
 
 ### Web Dashboard
@@ -218,10 +222,10 @@ For testing on a clean Linux environment, use Orbstack or any VM provider.
 
 ```bash
 # Create a new Ubuntu VM in Orbstack
-orb create ubuntu localhost-magic-test
+orb create ubuntu nameport-test
 
 # SSH into the VM
-orb ssh localhost-magic-test
+orb ssh nameport-test
 ```
 
 ### 2. Install Go on the VM
@@ -239,20 +243,21 @@ go version
 ### 3. Build the Project
 
 ```bash
-# Clone or copy the project to the VM
+# Clone the project to the VM
 cd ~
-# (copy your project files here)
+git clone https://github.com/OriPekelman/nameport.git
+cd nameport
 
 # Build
-go build -o localhost-magic-daemon ./cmd/daemon
-go build -o localhost-magic ./cmd/cli
+go build -o nameport-daemon ./cmd/daemon
+go build -o nameport ./cmd/cli
 ```
 
 ### 4. Test the Discovery
 
 Terminal 1 - Start the daemon:
 ```bash
-sudo ./localhost-magic-daemon
+sudo ./nameport-daemon
 ```
 
 Terminal 2 - Start a test HTTP server:
@@ -264,7 +269,7 @@ python3 -m http.server 8000
 
 Terminal 3 - Check discovery:
 ```bash
-./localhost-magic list
+./nameport list
 # Should show: myapp.localhost -> 127.0.0.1:8000
 ```
 
@@ -284,7 +289,7 @@ python3 -m http.server 8001
 
 Check the list:
 ```bash
-./localhost-magic list
+./nameport list
 # Should show:
 # myapp.localhost -> port 8000
 # myapp-1.localhost -> port 8001
@@ -293,8 +298,8 @@ Check the list:
 ### 6. Test Renaming
 
 ```bash
-./localhost-magic rename myapp.localhost coolapp.localhost
-./localhost-magic list
+./nameport rename myapp.localhost coolapp.localhost
+./nameport list
 curl http://coolapp.localhost
 ```
 
@@ -303,14 +308,14 @@ curl http://coolapp.localhost
 ### 1. Build
 
 ```bash
-go build -o localhost-magic-daemon ./cmd/daemon
-go build -o localhost-magic ./cmd/cli
+go build -o nameport-daemon ./cmd/daemon
+go build -o nameport ./cmd/cli
 ```
 
 ### 2. Start the Daemon
 
 ```bash
-sudo ./localhost-magic-daemon
+sudo ./nameport-daemon
 ```
 
 ### 3. Start a Test HTTP Server
@@ -326,7 +331,7 @@ python3 -m http.server 8000
 
 Terminal 3:
 ```bash
-./localhost-magic list
+./nameport list
 # Should show: myapp.localhost -> 127.0.0.1:8000
 ```
 
@@ -425,7 +430,7 @@ The following services are automatically ignored:
 
 - System binaries (`/usr/sbin/*`, `/usr/bin/*`, `/bin/*`, `/sbin/*`)
 - System daemons (`/usr/libexec/*`, `/usr/lib/*`)
-- The daemon itself (`localhost-magic-daemon`)
+- The daemon itself (`nameport-daemon`)
 
 **Exception**: Scripts running through interpreters (Python, Node, etc.) are NOT blacklisted if the script is in a user directory (`/home/*`, `/Users/*`, `/tmp/*`).
 
@@ -439,7 +444,7 @@ Uses SHA256 hash of `realpath(exe) + args` for stable identification across rest
 
 ## Configuration
 
-Default config location: `~/.config/localhost-magic/services.json`
+Default config location: `~/.config/nameport/services.json`
 
 Example:
 ```json
@@ -485,6 +490,20 @@ Fields:
 - `keep`: Whether to keep in dashboard when stopped
 - `last_seen`: Last time service was detected
 
+## System Integration
+
+### launchd (macOS)
+
+Service name: `com.nameport.daemon`
+
+### systemd (Linux)
+
+Service name: `nameport.service`
+
+### Logging
+
+Daemon logs are written to `/var/log/nameport.log`.
+
 ## Troubleshooting
 
 ### Permission Denied on Storage
@@ -492,7 +511,7 @@ Fields:
 If you see "permission denied" errors:
 ```bash
 # The daemon runs as root, so storage may be owned by root
-sudo chown $USER:$USER ~/.config/localhost-magic/services.json
+sudo chown $USER:$USER ~/.config/nameport/services.json
 ```
 
 ### Services Not Appearing
@@ -501,7 +520,7 @@ sudo chown $USER:$USER ~/.config/localhost-magic/services.json
    ```bash
    # Linux
    ss -tlnp | grep LISTEN
-   
+
    # macOS
    lsof -nP -iTCP -sTCP:LISTEN
    ```
@@ -513,15 +532,15 @@ sudo chown $USER:$USER ~/.config/localhost-magic/services.json
 
 3. Check daemon logs:
    ```bash
-   sudo ./localhost-magic-daemon 2>&1 | tee daemon.log
+   sudo ./nameport-daemon 2>&1 | tee daemon.log
    ```
 
 ### Wrong Service Names
 
 Clear the storage and restart:
 ```bash
-sudo rm ~/.config/localhost-magic/services.json
-sudo ./localhost-magic-daemon
+sudo rm ~/.config/nameport/services.json
+sudo ./nameport-daemon
 ```
 
 ### Port 80 Already in Use
@@ -545,7 +564,7 @@ Go to System Settings > Privacy & Security > Full Disk Access and add your termi
 
 Services are marked inactive when their PID disappears. They'll be hidden unless "Keep" is enabled. Use the dashboard or CLI to manage keep status:
 ```bash
-./localhost-magic keep myapp.localhost false
+./nameport keep myapp.localhost false
 ```
 
 ## Limitations
@@ -597,6 +616,10 @@ See [ROADMAP.md](ROADMAP.md) for the full development roadmap with detailed spec
 | **6. System Integration** | ~~systemd/launchd auto-start~~, ~~desktop notifications~~, optional GUI |
 | **7. Advanced Routing** | Custom TLD support with local DNS resolver |
 
+## Project Website
+
+The `docs/` directory is served via GitHub Pages as the project website at [nameport.eu](https://nameport.eu).
+
 ## License
 
-BSD-3-Clause license
+MIT license

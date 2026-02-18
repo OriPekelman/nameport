@@ -233,5 +233,5 @@ func DefaultStorePath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "localhost-magic", "services.json")
+	return filepath.Join(home, ".config", "nameport", "services.json")
 }

@@ -240,7 +240,7 @@ func defaultUserRulesPath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "localhost-magic", "naming-rules.json")
+	return filepath.Join(home, ".config", "nameport", "naming-rules.json")
 }
 
 // UserRulesPath returns the path to the user rules file (exported for CLI)

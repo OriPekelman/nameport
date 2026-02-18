@@ -11,14 +11,14 @@ import (
 // Debian/Ubuntu paths.
 const (
 	debianCertDir  = "/usr/local/share/ca-certificates"
-	debianCertFile = "localhost-magic.crt"
+	debianCertFile = "nameport.crt"
 	debianUpdate   = "update-ca-certificates"
 )
 
 // Fedora/RHEL/Arch paths.
 const (
 	fedoraCertDir  = "/etc/pki/ca-trust/source/anchors"
-	fedoraCertFile = "localhost-magic.pem"
+	fedoraCertFile = "nameport.pem"
 	fedoraUpdate   = "update-ca-trust"
 )
 

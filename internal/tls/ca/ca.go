@@ -95,7 +95,7 @@ func (ca *CA) Init() error {
 	rootTemplate := &x509.Certificate{
 		SerialNumber: rootSerial,
 		Subject: pkix.Name{
-			CommonName: "localhost-magic Root CA",
+			CommonName: "nameport Root CA",
 		},
 		NotBefore:             now,
 		NotAfter:              now.Add(10 * 365 * 24 * time.Hour), // ~10 years
@@ -128,7 +128,7 @@ func (ca *CA) Init() error {
 	interTemplate := &x509.Certificate{
 		SerialNumber: interSerial,
 		Subject: pkix.Name{
-			CommonName: "localhost-magic Intermediate CA",
+			CommonName: "nameport Intermediate CA",
 		},
 		NotBefore:             now,
 		NotAfter:              now.Add(365 * 24 * time.Hour), // 1 year
@@ -205,7 +205,7 @@ func (ca *CA) RotateIntermediate() error {
 	template := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			CommonName: "localhost-magic Intermediate CA",
+			CommonName: "nameport Intermediate CA",
 		},
 		NotBefore:             now,
 		NotAfter:              now.Add(365 * 24 * time.Hour),

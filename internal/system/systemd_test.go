@@ -8,14 +8,14 @@ import (
 )
 
 func TestGenerateUnit(t *testing.T) {
-	daemonPath := "/usr/local/bin/localhost-magic-daemon"
+	daemonPath := "/usr/local/bin/nameport-daemon"
 	unit := GenerateUnit(daemonPath)
 
 	// Verify [Unit] section
 	if !strings.Contains(unit, "[Unit]") {
 		t.Error("unit should contain [Unit] section")
 	}
-	if !strings.Contains(unit, "Description=localhost-magic daemon") {
+	if !strings.Contains(unit, "Description=nameport daemon") {
 		t.Error("unit should contain Description")
 	}
 	if !strings.Contains(unit, "After=network.target") {
@@ -47,9 +47,9 @@ func TestGenerateUnit(t *testing.T) {
 
 func TestGenerateUnitDifferentPaths(t *testing.T) {
 	paths := []string{
-		"/opt/localhost-magic/bin/daemon",
-		"/home/user/go/bin/localhost-magic",
-		"/usr/bin/localhost-magic-daemon",
+		"/opt/nameport/bin/daemon",
+		"/home/user/go/bin/nameport",
+		"/usr/bin/nameport-daemon",
 	}
 
 	for _, p := range paths {
@@ -62,7 +62,7 @@ func TestGenerateUnitDifferentPaths(t *testing.T) {
 
 func TestSystemdManagerUnitPath(t *testing.T) {
 	m := &SystemdManager{}
-	expected := "/etc/systemd/system/localhost-magic.service"
+	expected := "/etc/systemd/system/nameport.service"
 	if m.UnitPath() != expected {
 		t.Errorf("UnitPath() = %q, want %q", m.UnitPath(), expected)
 	}

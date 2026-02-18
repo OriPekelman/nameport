@@ -1,4 +1,4 @@
-// Package notify provides desktop notification support for localhost-magic.
+// Package notify provides desktop notification support for nameport.
 // It emits notifications on service discovery events, TLS certificate expiry,
 // and peer connection changes. Platform-specific implementations live in
 // notify_darwin.go, notify_linux.go, and notify_other.go.

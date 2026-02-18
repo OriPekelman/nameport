@@ -1,6 +1,6 @@
-# localhost-magic Roadmap
+# nameport Roadmap
 
-This document describes the planned evolution of localhost-magic. Each milestone is designed as an independent module with clear interfaces so that development can happen in parallel across multiple workstreams.
+This document describes the planned evolution of nameport. Each milestone is designed as an independent module with clear interfaces so that development can happen in parallel across multiple workstreams.
 
 > **Legend**: Each item lists the new Go packages/files it introduces and the existing packages it touches. Items within a milestone have no ordering dependency unless explicitly noted.
 
@@ -93,7 +93,7 @@ These items strengthen the existing codebase without adding new user-facing feat
   }
   ```
 
-- Store in a separate file: `~/.config/localhost-magic/blacklist.json`
+- Store in a separate file: `~/.config/nameport/blacklist.json`
 - `Store` gains `AddBlacklist(entry)`, `RemoveBlacklist(id)`, `ListBlacklist()`, `IsBlacklisted(exePath, args) bool`
 - The existing `naming.IsBlacklisted()` moves into `storage` (or delegates to it) so the daemon and CLI share the same logic.
 
@@ -132,12 +132,12 @@ These items strengthen the existing codebase without adding new user-facing feat
   ```
 
 - Ship a built-in `rules.json` embedded via `//go:embed`
-- User overrides in `~/.config/localhost-magic/naming-rules.json` (merged on top)
+- User overrides in `~/.config/nameport/naming-rules.json` (merged on top)
 - CLI commands:
-  - `localhost-magic rules list` — show active rules with priority
-  - `localhost-magic rules export > my-rules.json`
-  - `localhost-magic rules import my-rules.json`
-  - `localhost-magic rules set-base-dir ~/projects` — shortcut for setting the project root used by CWD-based heuristics
+  - `nameport rules list` — show active rules with priority
+  - `nameport rules export > my-rules.json`
+  - `nameport rules import my-rules.json`
+  - `nameport rules set-base-dir ~/projects` — shortcut for setting the project root used by CWD-based heuristics
 
 **Touches**: `internal/naming`, `cmd/cli`
 
@@ -308,16 +308,16 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ### 2.6 CLI and Export Commands ✅
 
-- `localhost-magic tls init` — bootstrap CA + trust (one-time sudo)
-- `localhost-magic tls ensure <domain>` — issue/return cert paths
-- `localhost-magic tls ensure '*.myapp.localhost'` — wildcard
-- `localhost-magic tls list` — show issued certs with expiry
-- `localhost-magic tls revoke <domain>` — revoke a leaf cert
-- `localhost-magic tls rotate` — rotate intermediate CA
-- `localhost-magic tls export nginx <domain>` — emit config snippet
-- `localhost-magic tls export caddy <domain>`
-- `localhost-magic tls export traefik <domain>`
-- `localhost-magic tls untrust` — remove root CA from OS trust store
+- `nameport tls init` — bootstrap CA + trust (one-time sudo)
+- `nameport tls ensure <domain>` — issue/return cert paths
+- `nameport tls ensure '*.myapp.localhost'` — wildcard
+- `nameport tls list` — show issued certs with expiry
+- `nameport tls revoke <domain>` — revoke a leaf cert
+- `nameport tls rotate` — rotate intermediate CA
+- `nameport tls export nginx <domain>` — emit config snippet
+- `nameport tls export caddy <domain>`
+- `nameport tls export traefik <domain>`
+- `nameport tls untrust` — remove root CA from OS trust store
 
 **Touches**: `cmd/cli/main.go`
 
@@ -343,7 +343,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 - Connect to Docker socket (`/var/run/docker.sock`) using the Docker Engine API (no external dependency — raw HTTP over Unix socket with `net.Dial("unix", ...)`).
 - For each running container:
   - Read exposed port mappings
-  - Read container labels for name hints (e.g. `localhost-magic.name=myapp`)
+  - Read container labels for name hints (e.g. `nameport.name=myapp`)
   - Read compose project name as group hint
   - Use container name as fallback
 - Produce `ServiceRecord` entries with `TargetHost` set to the container IP (bridge network) or `127.0.0.1` (host-mapped port).
@@ -381,7 +381,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 **Design**:
 
-- Each localhost-magic instance optionally advertises itself via mDNS/DNS-SD (using `_localhost-magic._tcp.local.`).
+- Each nameport instance optionally advertises itself via mDNS/DNS-SD (using `_nameport._tcp.local.`).
 - Discovery of peers on the local network.
 - Each peer exposes a lightweight JSON API listing its services:
 
@@ -399,7 +399,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
   e.g. `myapp.alice-macbook.localhost` routes to Alice's machine.
 
 - Peer identity verified via TLS client certificates (issued by the local CA from Milestone 2).
-- Security: opt-in only, requires explicit `localhost-magic peer enable`.
+- Security: opt-in only, requires explicit `nameport peer enable`.
 
 **New package**: `internal/peer`
 
@@ -409,9 +409,9 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ### 4.2 Selective Sharing
 
-- `localhost-magic peer share myapp.localhost` — expose a specific service to peers
-- `localhost-magic peer unshare myapp.localhost` — stop sharing
-- `localhost-magic peer list` — show discovered peers and their services
+- `nameport peer share myapp.localhost` — expose a specific service to peers
+- `nameport peer unshare myapp.localhost` — stop sharing
+- `nameport peer list` — show discovered peers and their services
 - Default: nothing shared. Must be explicitly opted in per-service.
 
 **Touches**: `cmd/cli`, `internal/peer`, `internal/storage` (add `Shared bool` to ServiceRecord)
@@ -475,7 +475,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 **Design**:
 
-- Opt-in per service: `localhost-magic inspect myapp.localhost`
+- Opt-in per service: `nameport inspect myapp.localhost`
 - When enabled, the proxy records:
   - Request method, URL, headers
   - Response status, headers, timing
@@ -500,12 +500,12 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 **Design**:
 
-- `localhost-magic install` command:
-  - **macOS**: Generate and load a `com.localhost-magic.daemon.plist` into `/Library/LaunchDaemons/`
-  - **Linux**: Generate and enable a `localhost-magic.service` systemd unit
-- `localhost-magic uninstall` — reverse the above
-- `localhost-magic status` — check if daemon is running (via PID file or systemd/launchctl query)
-- The daemon writes a PID file at `/var/run/localhost-magic.pid`
+- `nameport install` command:
+  - **macOS**: Generate and load a `com.nameport.daemon.plist` into `/Library/LaunchDaemons/`
+  - **Linux**: Generate and enable a `nameport.service` systemd unit
+- `nameport uninstall` — reverse the above
+- `nameport status` — check if daemon is running (via PID file or systemd/launchctl query)
+- The daemon writes a PID file at `/var/run/nameport.pid`
 
 **New files**: `internal/system/launchd.go`, `internal/system/systemd.go`
 
@@ -546,7 +546,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
   - Opens dashboard in default browser on click
   - Shows notification badge for new services
 - Communicates exclusively via the existing REST API (port 80)
-- Separate binary: `localhost-magic-gui`
+- Separate binary: `nameport-gui`
 - No additional dependencies on the daemon side.
 
 **New directory**: `cmd/gui/`
@@ -573,8 +573,8 @@ This is the largest single feature. It is designed as a standalone `internal/tls
   - Listen on `127.0.0.1:53` (configurable)
   - Respond to A/AAAA queries for configured TLDs with `127.0.0.1`
   - Forward everything else upstream
-- `localhost-magic dns enable` — configure system DNS to use local resolver
-- `localhost-magic dns disable` — revert
+- `nameport dns enable` — configure system DNS to use local resolver
+- `nameport dns disable` — revert
 - On macOS: create `/etc/resolver/<tld>` files (no system DNS change needed)
 - On Linux: configure via `systemd-resolved` split DNS or `/etc/resolver`
 

@@ -8,7 +8,7 @@ import (
 )
 
 func TestGeneratePlist(t *testing.T) {
-	daemonPath := "/usr/local/bin/localhost-magic-daemon"
+	daemonPath := "/usr/local/bin/nameport-daemon"
 	plist := GeneratePlist(daemonPath)
 
 	// Verify it is valid XML-ish plist
@@ -20,7 +20,7 @@ func TestGeneratePlist(t *testing.T) {
 	}
 
 	// Verify label
-	if !strings.Contains(plist, "<string>com.localhost-magic.daemon</string>") {
+	if !strings.Contains(plist, "<string>com.nameport.daemon</string>") {
 		t.Error("plist should contain the service label")
 	}
 
@@ -49,16 +49,16 @@ func TestGeneratePlist(t *testing.T) {
 	if !strings.Contains(plist, "<key>StandardErrorPath</key>") {
 		t.Error("plist should contain StandardErrorPath")
 	}
-	if !strings.Contains(plist, "<string>/var/log/localhost-magic.log</string>") {
-		t.Error("plist should point logs to /var/log/localhost-magic.log")
+	if !strings.Contains(plist, "<string>/var/log/nameport.log</string>") {
+		t.Error("plist should point logs to /var/log/nameport.log")
 	}
 }
 
 func TestGeneratePlistDifferentPaths(t *testing.T) {
 	paths := []string{
-		"/opt/localhost-magic/bin/daemon",
-		"/home/user/go/bin/localhost-magic",
-		"/usr/bin/localhost-magic-daemon",
+		"/opt/nameport/bin/daemon",
+		"/home/user/go/bin/nameport",
+		"/usr/bin/nameport-daemon",
 	}
 
 	for _, p := range paths {
@@ -71,7 +71,7 @@ func TestGeneratePlistDifferentPaths(t *testing.T) {
 
 func TestLaunchdManagerPlistPath(t *testing.T) {
 	m := &LaunchdManager{}
-	expected := "/Library/LaunchDaemons/com.localhost-magic.daemon.plist"
+	expected := "/Library/LaunchDaemons/com.nameport.daemon.plist"
 	if m.PlistPath() != expected {
 		t.Errorf("PlistPath() = %q, want %q", m.PlistPath(), expected)
 	}

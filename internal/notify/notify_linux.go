@@ -18,7 +18,7 @@ func (l *LinuxNotifier) Send(n Notification) error {
 		msg = msg + "\n" + n.URL
 	}
 	return exec.Command("notify-send",
-		"--app-name", "localhost-magic",
+		"--app-name", "nameport",
 		n.Title, msg,
 	).Run()
 }

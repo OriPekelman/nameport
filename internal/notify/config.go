@@ -12,7 +12,7 @@ func DefaultConfigPath() string {
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "localhost-magic", "notify.json")
+	return filepath.Join(home, ".config", "nameport", "notify.json")
 }
 
 // LoadConfig reads notification config from path. If the file does not exist,

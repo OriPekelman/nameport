@@ -1,1 +1,6 @@
-localhost-magic*
+/nameport
+/nameport-daemon
+/nameport-linux
+/nameport-daemon-linux
+/cli
+/daemon

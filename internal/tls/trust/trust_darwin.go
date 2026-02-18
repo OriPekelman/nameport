@@ -53,7 +53,7 @@ func (d *darwinTrustor) Install(rootCertPEM []byte) error {
 
 // Uninstall removes the root CA from the macOS System Keychain.
 func (d *darwinTrustor) Uninstall() error {
-	// security delete-certificate -c "localhost-magic Root CA" -t /Library/Keychains/System.keychain
+	// security delete-certificate -c "nameport Root CA" -t /Library/Keychains/System.keychain
 	cmd := exec.Command(securityBin, "delete-certificate",
 		"-c", certCommonName,
 		"-t",
@@ -83,7 +83,7 @@ func (d *darwinTrustor) NeedsElevation() bool {
 // writeTempPEM writes PEM data to a temporary file and returns the path.
 // The caller is responsible for removing the file.
 func writeTempPEM(pemData []byte) (string, error) {
-	f, err := os.CreateTemp("", "localhost-magic-ca-*.pem")
+	f, err := os.CreateTemp("", "nameport-ca-*.pem")
 	if err != nil {
 		return "", fmt.Errorf("trust: create temp file: %w", err)
 	}

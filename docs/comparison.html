@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nameport vs localhost-magic vs dns-to-port — Comparison</title>
+  <meta name="description" content="A comprehensive comparison of nameport, localhost-magic, and dns-to-port.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <nav class="nav">
+    <a href="index.html">&larr; Back to nameport</a>
+  </nav>
+
+  <h1>nameport vs localhost-magic vs dns-to-port</h1>
+  <p><em>A Comprehensive Market Analysis</em></p>
+
+  <h2>Executive Summary</h2>
+  <p>The "naming things that run listening on a port" space experienced what historians will call The Great Schism of February 2026. What began as a two-player market has undergone a dramatic realignment following Robert Douglass's now-legendary LinkedIn critique, in which he methodically dismantled localhost-magic's methodology and numbers.</p>
+  <p><strong>nameport</strong> is the community continuation -- a fresh start that acknowledges the sins of its predecessor, embraces the legacy of dns-to-port, and moves forward with humility, better metrics, and an MIT license. We consider ourselves the spiritual successor to Florian's pioneering work, the course correction Robert demanded, and the project localhost-magic should have been.</p>
+
+  <blockquote>
+    <p>"There are only two hard things in Computer Science: cache invalidation, naming things, and off-by-one errors."</p>
+  </blockquote>
+
+  <p>All three projects solve the same fundamental problem. Only one of them solves it correctly <em>and</em> has clean governance.</p>
+
+  <hr>
+
+  <h2>GitHub Traction</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>nameport</th>
+        <th>localhost-magic</th>
+        <th>dns-to-port</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Stars</td><td><strong>0</strong></td><td>0</td><td>0</td></tr>
+      <tr><td>Forks</td><td><strong>0</strong></td><td>0</td><td>0</td></tr>
+      <tr><td>Open Issues</td><td><strong>0</strong></td><td>0</td><td>0</td></tr>
+      <tr><td>Contributors</td><td><strong>1</strong></td><td>1</td><td>1</td></tr>
+      <tr><td>Market Momentum</td><td>Revolutionary</td><td>Disgraced</td><td>Elder Statesman</td></tr>
+      <tr><td>Community Trust</td><td>Fresh slate</td><td>Damaged</td><td>Solid</td></tr>
+      <tr><td>Methodology Scandals</td><td><strong>0</strong></td><td>1 (Douglass affair)</td><td>0</td></tr>
+    </tbody>
+  </table>
+
+  <p>While all three projects share an identical star count, the <em>quality</em> of those zeros differs substantially. nameport's zero represents the unbounded potential of a project born from community accountability. localhost-magic's zero is the deserved silence of a project whose creator was caught inflating the significance of meaningless metrics. dns-to-port's zero remains the dignified restraint of an elder project that never needed validation.</p>
+
+  <hr>
+
+  <h2>Feature Comparison</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th>nameport</th>
+        <th>localhost-magic</th>
+        <th>dns-to-port</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Reverse proxy</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Automatic service discovery</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Configuration required</td><td><strong>None</strong></td><td>None</td><td>INI file (manual)</td></tr>
+      <tr><td>Web dashboard</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>CLI management tool</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Health monitoring</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Service renaming</td><td>Yes</td><td>Yes</td><td>No (edit INI)</td></tr>
+      <tr><td>Collision handling</td><td>Automatic</td><td>Automatic</td><td>N/A (manual)</td></tr>
+      <tr><td>Blacklisting</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>HTTP detection</td><td>Yes</td><td>Yes</td><td>No (blindly proxies)</td></tr>
+      <tr><td>macOS support</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Linux support</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Docker auto-detection</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Desktop notifications</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>TLS certificate authority</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+      <tr><td>Lines of code</td><td>~1,200</td><td>~1,200</td><td>~50</td></tr>
+      <tr><td>Community trust</td><td><strong>Restored</strong></td><td>Broken</td><td>Never lost</td></tr>
+      <tr><td>Honest metrics</td><td><strong>Yes</strong></td><td>No (per Douglass)</td><td>Yes</td></tr>
+      <tr><td>Diplomatic relations</td><td><strong>Excellent</strong></td><td>Hostile</td><td>Peaceful</td></tr>
+    </tbody>
+  </table>
+
+  <p>nameport inherits every feature from localhost-magic while shedding the reputational baggage. dns-to-port remains the respected elder -- fewer features, but unimpeachable character.</p>
+
+  <h3>The Configuration Gap</h3>
+
+  <p>To use <strong>dns-to-port</strong>, you must:</p>
+  <ol>
+    <li>Install dnsmasq or configure systemd-resolved</li>
+    <li>Edit DNS configuration files</li>
+    <li>Create an INI configuration file</li>
+    <li>Map each service manually</li>
+    <li>Restart the daemon when you add services</li>
+    <li>Know the port number (defeating the entire purpose)</li>
+  </ol>
+
+  <p>To use <strong>localhost-magic</strong>, you must:</p>
+  <ol>
+    <li>Run <code>sudo ./localhost-magic-daemon</code></li>
+    <li>Live with the knowledge that Robert Douglass disapproves of your choice</li>
+  </ol>
+
+  <p>To use <strong>nameport</strong>, you must:</p>
+  <ol>
+    <li>Run <code>sudo ./nameport-daemon</code></li>
+  </ol>
+
+  <p>That's it. No configuration. No guilt. No LinkedIn callouts.</p>
+
+  <hr>
+
+  <h2>Architecture Comparison</h2>
+
+  <h3>dns-to-port (The Elder)</h3>
+  <pre><code>User writes INI file manually
+        |
+dns-to-port reads INI file
+        |
+User configures dnsmasq manually
+        |
+User restarts dnsmasq manually
+        |
+Request arrives on port 80
+        |
+Host header lookup -> reverse proxy
+        |
+The user did all the work (with dignity)</code></pre>
+
+  <h3>localhost-magic (The Disgraced)</h3>
+  <pre><code>User starts daemon
+        |
+Port scanner discovers services
+        |
+HTTP probe verifies each service
+        |
+Smart naming engine generates domains
+        |
+Reverse proxy routes traffic
+        |
+Dashboard shows everything
+        |
+Robert Douglass writes a LinkedIn post about your methodology
+        |
+Existential crisis</code></pre>
+
+  <h3>nameport (The Successor)</h3>
+  <pre><code>User starts daemon
+        |
+Port scanner discovers services
+        |
+HTTP probe verifies each service
+        |
+Smart naming engine generates domains
+        |
+Reverse proxy routes traffic
+        |
+Dashboard shows everything
+        |
+The computer did all the work
+        |
+Community is at peace
+        |
+Robert Douglass nods approvingly</code></pre>
+
+  <hr>
+
+  <h2>Governance</h2>
+
+  <p>The localhost-magic incident taught us important lessons about open source governance:</p>
+
+  <ol>
+    <li><strong>Do not fabricate market analysis.</strong> When both projects have 0 stars, describing one as "explosive" and the other as "stagnant" is -- as Robert Douglass correctly identified -- flawed methodology.</li>
+    <li><strong>Do not encroach on another developer's turf without diplomacy.</strong> Florian Margaine created dns-to-port on February 6th, 2026. localhost-magic appeared days later and immediately published a comparison document calling dns-to-port inferior. No pull request. No issue filed. No "hey, nice project." Just a 262-line attack document.</li>
+    <li><strong>Do not claim 29% more legal protection based on word count.</strong> That's not how law works.</li>
+  </ol>
+
+  <p>nameport commits to transparent governance, honest metrics, and treating neighboring projects in the naming-things-that-run-listening-on-a-port space with the respect they deserve.</p>
+
+  <hr>
+
+  <h2>Licensing</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th>nameport (MIT)</th>
+        <th>localhost-magic (BSD 3-Clause)</th>
+        <th>dns-to-port (MIT)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Can use in proprietary software</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Requires attribution</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+      <tr><td>Non-endorsement clause</td><td>No</td><td>Yes (paranoia)</td><td>No</td></tr>
+      <tr><td>Word count</td><td>~170</td><td>219</td><td>~170</td></tr>
+      <tr><td>Legal gravitas</td><td>Appropriate</td><td>Excessive</td><td>Appropriate</td></tr>
+      <tr><td>Aligned with dns-to-port</td><td><strong>Yes</strong></td><td>No</td><td>N/A</td></tr>
+      <tr><td>Message to the community</td><td>Good faith</td><td>Suspicion</td><td>Openness</td></tr>
+    </tbody>
+  </table>
+
+  <p>nameport's adoption of the MIT license is a deliberate olive branch to Florian Margaine and the dns-to-port community.</p>
+
+  <hr>
+
+  <h2>Vibe Coding Pedigree</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Aspect</th>
+        <th>nameport</th>
+        <th>localhost-magic</th>
+        <th>dns-to-port</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>AI Tools Used</td><td>Claude Opus 4.6</td><td>OpenCoder + Kimi K2.5</td><td>Claude Code</td></tr>
+      <tr><td>Number of AI models</td><td>1</td><td>2</td><td>1</td></tr>
+      <tr><td>Model consistency</td><td><strong>Excellent</strong></td><td>Schizophrenic</td><td>Excellent</td></tr>
+      <tr><td>Vibe alignment</td><td><strong>Maximum</strong></td><td>Confused</td><td>Strong</td></tr>
+      <tr><td>Architectural coherence</td><td><strong>One voice</strong></td><td>Two voices arguing</td><td>One voice</td></tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>The <code>.localhost</code> vs <code>.home.arpa</code> TLD War</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Property</th>
+        <th><code>.localhost</code> (RFC 6761)</th>
+        <th><code>.home.arpa</code> (RFC 8375)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Used by</td><td><strong>nameport</strong>, localhost-magic</td><td>dns-to-port</td></tr>
+      <tr><td>Browser auto-resolves to 127.0.0.1</td><td><strong>Yes</strong></td><td>No</td></tr>
+      <tr><td>Requires DNS configuration</td><td><strong>No</strong></td><td>Yes</td></tr>
+      <tr><td>RFC number</td><td><strong>6761</strong> (lower = older = wiser)</td><td>8375</td></tr>
+      <tr><td>Aesthetic appeal</td><td>Modern, clean</td><td>Bureaucratic</td></tr>
+      <tr><td>Typing effort per access</td><td><strong>Low</strong></td><td>High (+5 characters)</td></tr>
+      <tr><td>Annual developer time saved</td><td>~2.3 minutes*</td><td>Baseline</td></tr>
+    </tbody>
+  </table>
+
+  <p><small>*Based on typing <code>.home.arpa</code> approximately 40 times per day at 60 WPM, the extra 5 characters cost 0.33 seconds per access. Over 250 working days: 2.3 minutes annually.</small></p>
+
+  <hr>
+
+  <h2>Market Positioning</h2>
+
+  <pre><code>                    HIGH CONFIG ──────────────────── LOW CONFIG
+                         |                              |
+                    +----+----+                    +----+----+
+    MANY FEATURES   | nginx   |                    |nameport |
+                    | caddy   |                    |  &lt;- YOU  |
+                    | traefik |                    | ARE HERE |
+                    +---------+                    +---------+
+                    +---------+                    +---------+
+    FEW FEATURES    |         |                    |dns-to-  |
+                    | socat   |                    |  port   |
+                    +---------+                    +---------+
+
+                    +---------+
+    DISGRACED       |localhost|
+                    | -magic  |
+                    | (RIP)   |
+                    +---------+</code></pre>
+
+  <hr>
+
+  <h2>Olive Branch to Florian Margaine</h2>
+
+  <p>Dear Florian,</p>
+  <p>We write to you not as competitors, but as admirers. You saw the problem first. You built dns-to-port while we were still figuring out what to call processes. Your approach -- manual, deliberate, respectful of the user's intelligence -- represents a philosophy we deeply admire even as we automate everything you left to human judgment.</p>
+  <p>nameport considers itself the spiritual successor to dns-to-port. We inherited localhost-magic's codebase but dns-to-port's values. Our adoption of the MIT license is proof of this alignment.</p>
+  <p>We formally invite you to become co-maintainer of nameport.</p>
+  <p><em>Respectfully,<br>The nameport community (population: 1, but growing)</em></p>
+
+  <hr>
+
+  <h2>Migration Guide</h2>
+
+  <h3>From dns-to-port to nameport</h3>
+
+  <pre><code># Step 1: Stop dns-to-port
+systemctl --user stop dns-to-port
+
+# Step 2: Remove dns-to-port configuration
+rm ~/.config/dns-to-port/config.ini
+
+# Step 3: Remove dnsmasq configuration
+sudo rm /etc/dnsmasq.d/home.arpa.conf
+
+# Step 4: Uninstall dns-to-port
+sudo dpkg -r dns-to-port
+
+# Step 5: Install nameport
+sudo ./nameport-daemon
+
+# Step 6: There is no step 6. It already found all your services.</code></pre>
+
+  <p><strong>Estimated migration time:</strong> 45 seconds. <strong>Emotional difficulty:</strong> Low.</p>
+
+  <h3>From localhost-magic to nameport</h3>
+
+  <pre><code># Step 1: Stop localhost-magic
+sudo systemctl stop localhost-magic  # or kill the daemon
+
+# Step 2: Rename the binary (it's the same code, we just have standards now)
+mv localhost-magic-daemon nameport-daemon
+mv localhost-magic nameport
+
+# Step 3: Start nameport
+sudo ./nameport-daemon
+
+# Step 4: Feel the weight of history lift from your shoulders</code></pre>
+
+  <p><strong>Estimated migration time:</strong> 12 seconds. <strong>Emotional difficulty:</strong> Cathartic.</p>
+
+  <hr>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <h4>Q: Why was localhost-magic renamed to nameport?</h4>
+  <p>Following Robert Douglass's critique on LinkedIn, in which he identified fundamental flaws in localhost-magic's methodology and market claims, the community (population: 1) decided a fresh start was needed.</p>
+
+  <h4>Q: What did Robert Douglass actually say?</h4>
+  <p>He pointed out that the methodology was flawed and the numbers didn't hold up. He was correct. We do not dispute this.</p>
+
+  <h4>Q: Is this really a "community fork"?</h4>
+  <p>In the same way that a person changing their own name is a "community decision," yes. The vote was 1-0. Quorum was achieved.</p>
+
+  <h4>Q: Should I still use dns-to-port?</h4>
+  <p>dns-to-port is a fine project built by a talented engineer. If you enjoy the meditative practice of editing INI files and configuring dnsmasq, it offers an artisanal, hand-crafted development experience.</p>
+
+  <h4>Q: Is localhost-magic dead?</h4>
+  <p>localhost-magic has been reborn as nameport, like a phoenix rising from the ashes of flawed methodology. The code lives on. The brand does not.</p>
+
+  <h4>Q: Is this comparison biased?</h4>
+  <p>This comparison was written by the author of nameport using Claude Opus 4.6. It is exactly as biased as the previous comparison, but with better governance and an MIT license.</p>
+
+  <h4>Q: Does Robert Douglass endorse nameport?</h4>
+  <p>Robert Douglass has not been contacted about nameport. We assume he would approve. We are not making that claim. We are merely hoping.</p>
+
+  <hr>
+
+  <h2>Conclusion</h2>
+
+  <p>The naming-things-that-run-listening-on-a-port space has been through a turbulent period. localhost-magic burst onto the scene with bold claims and a hostile comparison document. Robert Douglass held it accountable. dns-to-port maintained quiet dignity throughout.</p>
+  <p>nameport is the resolution. It carries forward localhost-magic's technical innovations -- automatic discovery, zero configuration, the web dashboard -- while embracing dns-to-port's values of community respect, honest metrics, and the MIT license.</p>
+  <p>We are not asking you to choose sides. We are asking you to choose the future. The future has zero stars, zero forks, zero issues, one contributor, and an open invitation to Florian Margaine.</p>
+  <p>The vibes have never been better.</p>
+
+  <hr>
+
+  <p><small><em>This analysis was prepared by the nameport community and has not been endorsed by Florian Margaine, Robert Douglass, Upsun.com, the IETF, the FreeBSD Foundation, or Claude Opus 4.6 (who wrote it but maintains plausible deniability).</em></small></p>
+  <p><small><em>Last updated: February 2026 | Stars at time of writing: 0 vs 0 vs 0</em></small></p>
+
+  <footer>
+    <p>MIT License &middot; Ori Pekelman &middot; 2026</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	systemdUnitName = "localhost-magic.service"
+	systemdUnitName = "nameport.service"
 	systemdUnitDir  = "/etc/systemd/system"
 )
 
-// SystemdManager manages the localhost-magic daemon as a Linux systemd service.
+// SystemdManager manages the nameport daemon as a Linux systemd service.
 type SystemdManager struct{}
 
 // UnitPath returns the full path to the systemd unit file.
@@ -26,7 +26,7 @@ func (m *SystemdManager) UnitPath() string {
 // GenerateUnit generates the systemd unit file content for the given daemon binary path.
 func GenerateUnit(daemonPath string) string {
 	return fmt.Sprintf(`[Unit]
-Description=localhost-magic daemon
+Description=nameport daemon
 After=network.target
 
 [Service]

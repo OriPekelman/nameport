@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	launchdLabel    = "com.localhost-magic.daemon"
+	launchdLabel    = "com.nameport.daemon"
 	launchdPlistDir = "/Library/LaunchDaemons"
-	launchdLogPath  = "/var/log/localhost-magic.log"
+	launchdLogPath  = "/var/log/nameport.log"
 )
 
-// LaunchdManager manages the localhost-magic daemon as a macOS launchd service.
+// LaunchdManager manages the nameport daemon as a macOS launchd service.
 type LaunchdManager struct{}
 
 // PlistPath returns the full path to the plist file.

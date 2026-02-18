@@ -17,8 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"localhost-magic/internal/tls/ca"
-	"localhost-magic/internal/tls/policy"
+	"nameport/internal/tls/ca"
+	"nameport/internal/tls/policy"
 )
 
 // DefaultValidFor is the default leaf certificate lifetime.

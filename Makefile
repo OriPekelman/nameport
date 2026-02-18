@@ -1,8 +1,8 @@
 .PHONY: all build clean test
 
-BINARY_NAME=localhost-magic
-DAEMON_NAME=localhost-magic-daemon
-CLI_NAME=localhost-magic
+BINARY_NAME=nameport
+DAEMON_NAME=nameport-daemon
+CLI_NAME=nameport
 
 all: build
 

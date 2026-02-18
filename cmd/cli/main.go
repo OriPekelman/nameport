@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"localhost-magic/internal/naming"
-	"localhost-magic/internal/notify"
-	"localhost-magic/internal/storage"
-	"localhost-magic/internal/tls/ca"
-	"localhost-magic/internal/tls/issuer"
-	"localhost-magic/internal/tls/policy"
-	"localhost-magic/internal/tls/trust"
+	"nameport/internal/naming"
+	"nameport/internal/notify"
+	"nameport/internal/storage"
+	"nameport/internal/tls/ca"
+	"nameport/internal/tls/issuer"
+	"nameport/internal/tls/policy"
+	"nameport/internal/tls/trust"
 )
 
 func main() {
@@ -55,13 +55,13 @@ func main() {
 		cmdList(store)
 	case "rename", "mv":
 		if len(os.Args) < 4 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic rename <old-name> <new-name>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport rename <old-name> <new-name>\n")
 			os.Exit(1)
 		}
 		cmdRename(store, os.Args[2], os.Args[3])
 	case "keep":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic keep <name> [true|false]\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport keep <name> [true|false]\n")
 			os.Exit(1)
 		}
 		keepVal := true
@@ -71,7 +71,7 @@ func main() {
 		cmdKeep(store, os.Args[2], keepVal)
 	case "blacklist":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist <subcommand>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport blacklist <subcommand>\n")
 			fmt.Fprintf(os.Stderr, "  blacklist <type> <value>     Add to blacklist (type: pid|path|pattern)\n")
 			fmt.Fprintf(os.Stderr, "  blacklist list               List all blacklist entries\n")
 			fmt.Fprintf(os.Stderr, "  blacklist remove <id>        Remove a blacklist entry\n")
@@ -83,14 +83,14 @@ func main() {
 			cmdBlacklistList(blacklistStore)
 		case "remove":
 			if len(os.Args) < 4 {
-				fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist remove <id>\n")
+				fmt.Fprintf(os.Stderr, "Usage: nameport blacklist remove <id>\n")
 				os.Exit(1)
 			}
 			cmdBlacklistRemove(blacklistStore, os.Args[3])
 		default:
 			// Treat as blacklist add: blacklist <type> <value>
 			if len(os.Args) < 4 {
-				fmt.Fprintf(os.Stderr, "Usage: localhost-magic blacklist <type> <value>\n")
+				fmt.Fprintf(os.Stderr, "Usage: nameport blacklist <type> <value>\n")
 				fmt.Fprintf(os.Stderr, "  type: pid|path|pattern\n")
 				os.Exit(1)
 			}
@@ -98,19 +98,19 @@ func main() {
 		}
 	case "rules":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules <list|export|import> [file]\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport rules <list|export|import> [file]\n")
 			os.Exit(1)
 		}
 		cmdRules(os.Args[2:])
 	case "notify":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify <status|enable|disable|events>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport notify <status|enable|disable|events>\n")
 			os.Exit(1)
 		}
 		cmdNotify(os.Args[2:])
 	case "tls":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls <init|status|ensure|list|revoke|rotate|export|untrust>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport tls <init|status|ensure|list|revoke|rotate|export|untrust>\n")
 			os.Exit(1)
 		}
 		cmdTLS(os.Args[2:])
@@ -118,13 +118,13 @@ func main() {
 		cmdCleanup()
 	case "remove", "rm":
 		if len(os.Args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic remove <name>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport remove <name>\n")
 			os.Exit(1)
 		}
 		cmdRemove(store, os.Args[2])
 	case "add":
 		if len(os.Args) < 4 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic add <name> [host:]<port>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport add <name> [host:]<port>\n")
 			os.Exit(1)
 		}
 		target := os.Args[3]
@@ -155,46 +155,46 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println("localhost-magic - Manage local service DNS names")
+	fmt.Println("nameport - Manage local service DNS names")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  localhost-magic list                          List all registered services")
-	fmt.Println("  localhost-magic rename <old> <new>            Rename a service")
-	fmt.Println("  localhost-magic keep <name> [true|false]      Toggle keep status (default: true)")
-	fmt.Println("  localhost-magic blacklist <type> <value>      Add to blacklist")
-	fmt.Println("  localhost-magic blacklist list                List all blacklist entries")
-	fmt.Println("  localhost-magic blacklist remove <id>         Remove a blacklist entry")
-	fmt.Println("  localhost-magic rules list                    List naming rules")
-	fmt.Println("  localhost-magic rules export                  Export rules as JSON")
-	fmt.Println("  localhost-magic rules import <file>           Import user rules from file")
-	fmt.Println("  localhost-magic remove <name>                 Remove a service entry")
-	fmt.Println("  localhost-magic add <name> [host:]<port>      Add manual service entry")
-	fmt.Println("  localhost-magic notify status                 Show notification config")
-	fmt.Println("  localhost-magic notify enable                 Enable notifications")
-	fmt.Println("  localhost-magic notify disable                Disable notifications")
-	fmt.Println("  localhost-magic notify events <type> on|off   Toggle event type")
+	fmt.Println("  nameport list                          List all registered services")
+	fmt.Println("  nameport rename <old> <new>            Rename a service")
+	fmt.Println("  nameport keep <name> [true|false]      Toggle keep status (default: true)")
+	fmt.Println("  nameport blacklist <type> <value>      Add to blacklist")
+	fmt.Println("  nameport blacklist list                List all blacklist entries")
+	fmt.Println("  nameport blacklist remove <id>         Remove a blacklist entry")
+	fmt.Println("  nameport rules list                    List naming rules")
+	fmt.Println("  nameport rules export                  Export rules as JSON")
+	fmt.Println("  nameport rules import <file>           Import user rules from file")
+	fmt.Println("  nameport remove <name>                 Remove a service entry")
+	fmt.Println("  nameport add <name> [host:]<port>      Add manual service entry")
+	fmt.Println("  nameport notify status                 Show notification config")
+	fmt.Println("  nameport notify enable                 Enable notifications")
+	fmt.Println("  nameport notify disable                Disable notifications")
+	fmt.Println("  nameport notify events <type> on|off   Toggle event type")
 	fmt.Println()
 	fmt.Println("TLS Commands:")
-	fmt.Println("  localhost-magic tls init                      Bootstrap CA and install into trust store")
-	fmt.Println("  localhost-magic tls status                    Show CA and trust status")
-	fmt.Println("  localhost-magic tls ensure <domain>           Issue/return cert for domain")
-	fmt.Println("  localhost-magic tls list                      List issued certificates")
-	fmt.Println("  localhost-magic tls rotate                    Rotate intermediate CA")
-	fmt.Println("  localhost-magic tls export <format> <domain>  Export cert config (nginx|caddy|traefik)")
-	fmt.Println("  localhost-magic tls untrust                   Remove CA from OS trust store")
+	fmt.Println("  nameport tls init                      Bootstrap CA and install into trust store")
+	fmt.Println("  nameport tls status                    Show CA and trust status")
+	fmt.Println("  nameport tls ensure <domain>           Issue/return cert for domain")
+	fmt.Println("  nameport tls list                      List issued certificates")
+	fmt.Println("  nameport tls rotate                    Rotate intermediate CA")
+	fmt.Println("  nameport tls export <format> <domain>  Export cert config (nginx|caddy|traefik)")
+	fmt.Println("  nameport tls untrust                   Remove CA from OS trust store")
 	fmt.Println()
 	fmt.Println("System Commands:")
-	fmt.Println("  localhost-magic cleanup                       Remove all localhost-magic data and trust entries")
+	fmt.Println("  nameport cleanup                       Remove all nameport data and trust entries")
 	fmt.Println()
-	fmt.Println("  localhost-magic --config <path>               Use custom config path")
+	fmt.Println("  nameport --config <path>               Use custom config path")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  localhost-magic list")
-	fmt.Println("  localhost-magic rename myapp.localhost api.localhost")
-	fmt.Println("  localhost-magic tls init")
-	fmt.Println("  localhost-magic tls ensure myapp.localhost")
-	fmt.Println("  localhost-magic tls export nginx myapp.localhost")
-	fmt.Println("  localhost-magic cleanup")
+	fmt.Println("  nameport list")
+	fmt.Println("  nameport rename myapp.localhost api.localhost")
+	fmt.Println("  nameport tls init")
+	fmt.Println("  nameport tls ensure myapp.localhost")
+	fmt.Println("  nameport tls export nginx myapp.localhost")
+	fmt.Println("  nameport cleanup")
 }
 
 func cmdList(store *storage.Store) {
@@ -420,7 +420,7 @@ func cmdRules(args []string) {
 
 	case "import":
 		if len(args) < 2 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules import <file>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport rules import <file>\n")
 			os.Exit(1)
 		}
 		srcFile := args[1]
@@ -453,7 +453,7 @@ func cmdRules(args []string) {
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown rules command: %s\n", subCmd)
-		fmt.Fprintf(os.Stderr, "Usage: localhost-magic rules <list|export|import> [file]\n")
+		fmt.Fprintf(os.Stderr, "Usage: nameport rules <list|export|import> [file]\n")
 		os.Exit(1)
 	}
 }
@@ -503,7 +503,7 @@ func cmdNotify(args []string) {
 
 	case "events":
 		if len(args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify events <type> on|off\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport notify events <type> on|off\n")
 			fmt.Fprintf(os.Stderr, "\nEvent types:\n")
 			for _, e := range notify.AllEvents() {
 				fmt.Fprintf(os.Stderr, "  %s\n", e)
@@ -542,7 +542,7 @@ func cmdNotify(args []string) {
 
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown notify command: %s\n", subCmd)
-		fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify <status|enable|disable|events>\n")
+		fmt.Fprintf(os.Stderr, "Usage: nameport notify <status|enable|disable|events>\n")
 		os.Exit(1)
 	}
 }
@@ -566,7 +566,7 @@ func cmdTLS(args []string) {
 		cmdTLSStatus()
 	case "ensure":
 		if len(args) < 2 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls ensure <domain>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport tls ensure <domain>\n")
 			os.Exit(1)
 		}
 		cmdTLSEnsure(args[1])
@@ -576,7 +576,7 @@ func cmdTLS(args []string) {
 		cmdTLSRotate()
 	case "export":
 		if len(args) < 3 {
-			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls export <nginx|caddy|traefik> <domain>\n")
+			fmt.Fprintf(os.Stderr, "Usage: nameport tls export <nginx|caddy|traefik> <domain>\n")
 			os.Exit(1)
 		}
 		cmdTLSExport(args[1], args[2])
@@ -584,7 +584,7 @@ func cmdTLS(args []string) {
 		cmdTLSUntrust()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown tls command: %s\n", subCmd)
-		fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls <init|status|ensure|list|rotate|export|untrust>\n")
+		fmt.Fprintf(os.Stderr, "Usage: nameport tls <init|status|ensure|list|rotate|export|untrust>\n")
 		os.Exit(1)
 	}
 }
@@ -638,7 +638,7 @@ func cmdTLSStatus() {
 
 	if !tlsCA.IsInitialized() {
 		fmt.Println("Status: NOT INITIALIZED")
-		fmt.Println("  Run 'localhost-magic tls init' to bootstrap the CA.")
+		fmt.Println("  Run 'nameport tls init' to bootstrap the CA.")
 		return
 	}
 
@@ -650,7 +650,7 @@ func cmdTLSStatus() {
 
 	// Check if intermediate needs rotation
 	if time.Until(tlsCA.InterCert.NotAfter) < 30*24*time.Hour {
-		fmt.Println("  WARNING: Intermediate CA expires within 30 days. Run 'localhost-magic tls rotate'.")
+		fmt.Println("  WARNING: Intermediate CA expires within 30 days. Run 'nameport tls rotate'.")
 	}
 
 	// Check trust status
@@ -659,7 +659,7 @@ func cmdTLSStatus() {
 		fmt.Println("  OS Trust:        INSTALLED")
 	} else {
 		fmt.Println("  OS Trust:        NOT INSTALLED")
-		fmt.Println("    Run 'sudo localhost-magic tls init' to install into system trust store.")
+		fmt.Println("    Run 'sudo nameport tls init' to install into system trust store.")
 	}
 
 	// List issued certs
@@ -689,7 +689,7 @@ func cmdTLSEnsure(domain string) {
 	}
 
 	if !tlsCA.IsInitialized() {
-		log.Fatalf("CA not initialized. Run 'localhost-magic tls init' first.")
+		log.Fatalf("CA not initialized. Run 'nameport tls init' first.")
 	}
 
 	pol := policy.NewPolicy()
@@ -776,7 +776,7 @@ func cmdTLSRotate() {
 	}
 
 	if !tlsCA.IsInitialized() {
-		log.Fatalf("CA not initialized. Run 'localhost-magic tls init' first.")
+		log.Fatalf("CA not initialized. Run 'nameport tls init' first.")
 	}
 
 	fmt.Println("Rotating intermediate CA...")
@@ -866,7 +866,7 @@ func cmdTLSUntrust() {
 }
 
 func cmdCleanup() {
-	fmt.Println("localhost-magic cleanup")
+	fmt.Println("nameport cleanup")
 	fmt.Println("This will remove:")
 	fmt.Println("  - Root CA from system trust store")
 	fmt.Println("  - All CA material and issued certificates")
@@ -882,7 +882,7 @@ func cmdCleanup() {
 			fmt.Println("Removing root CA from system trust store...")
 			if err := trustor.Uninstall(); err != nil {
 				fmt.Printf("Warning: failed to remove CA from trust store: %v\n", err)
-				fmt.Println("  You may need to run 'sudo localhost-magic tls untrust' separately.")
+				fmt.Println("  You may need to run 'sudo nameport tls untrust' separately.")
 			} else {
 				fmt.Println("  Root CA removed from trust store.")
 			}
@@ -911,7 +911,7 @@ func cmdCleanup() {
 	}
 
 	fmt.Println()
-	fmt.Println("Cleanup complete. localhost-magic data has been removed.")
+	fmt.Println("Cleanup complete. nameport data has been removed.")
 	fmt.Println("Note: If the daemon is installed as a system service, run:")
-	fmt.Println("  sudo localhost-magic uninstall")
+	fmt.Println("  sudo nameport uninstall")
 }

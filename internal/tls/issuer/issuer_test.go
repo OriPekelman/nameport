@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"localhost-magic/internal/tls/ca"
-	"localhost-magic/internal/tls/policy"
+	"nameport/internal/tls/ca"
+	"nameport/internal/tls/policy"
 )
 
 // newTestCA creates an initialised CA in a temporary directory.

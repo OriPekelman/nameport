@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nameport — Automatic .localhost DNS names for every HTTP service</title>
+  <meta name="description" content="nameport discovers local HTTP services, names them, and reverse-proxies them through .localhost domains. Zero configuration.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Hero -->
+  <section class="hero">
+    <img src="images/nameport-logo.jpg" alt="nameport logo" class="hero-logo">
+    <h1>nameport</h1>
+    <p class="tagline">Automatic <code>.localhost</code> DNS names for every HTTP service</p>
+  </section>
+
+  <hr>
+
+  <!-- What it does -->
+  <section>
+    <h2>What it does</h2>
+    <p>nameport is a daemon that watches your machine for HTTP services, gives them human-friendly names, and reverse-proxies them through <code>.localhost</code> domains. No config files, no <code>/etc/hosts</code>, no DNS server.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3>Auto-discovery</h3>
+        <p>Scans for listening TCP ports every 2 seconds and verifies they speak HTTP.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Smart naming</h3>
+        <p>17 built-in heuristics extract names from project directories, app bundles, and script paths.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Reverse proxy</h3>
+        <p>Routes traffic through port 80 and 443 with <code>.localhost</code> domains. No DNS needed.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Web dashboard</h3>
+        <p>Real-time health status, inline rename, keep, and blacklist controls.</p>
+      </div>
+      <div class="feature-card">
+        <h3>CLI</h3>
+        <p>Full management: list, rename, keep, add, remove, blacklist, rules, notify.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Local TLS</h3>
+        <p>Two-tier certificate authority with domain policy enforcement for local HTTPS.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Docker support</h3>
+        <p>Auto-detects containers with exposed ports and names them.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Notifications</h3>
+        <p>Desktop alerts for service discovery, offline, and rename events.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- How it works -->
+  <section>
+    <h2>How it works</h2>
+    <p>nameport runs a daemon that binds to ports 80 and 443. It continuously scans for listening TCP ports on your machine, probes each one to verify it speaks HTTP, then generates a human-readable <code>.localhost</code> domain using heuristics based on the process name, working directory, or app bundle.</p>
+    <p>Every discovered service gets a reverse proxy entry. Open <code>http://myapp.localhost</code> in your browser and traffic is forwarded to the right port. Collisions are handled automatically: <code>myapp.localhost</code>, <code>myapp-1.localhost</code>, <code>myapp-2.localhost</code>.</p>
+    <p>The <code>.localhost</code> TLD is reserved by IANA (RFC 6761) and resolves to <code>127.0.0.1</code> in all modern browsers without any DNS configuration.</p>
+  </section>
+
+  <hr>
+
+  <!-- Inspired by -->
+  <section>
+    <h2>Inspired by</h2>
+    <p>nameport is the spiritual successor to <a href="https://github.com/FlorentVll662662/dns-to-port">dns-to-port</a> by <strong>Florian Margaine</strong>, who saw the problem first and built the original solution. nameport shares dns-to-port's MIT license and community values while adding automatic discovery, zero configuration, and a web dashboard.</p>
+  </section>
+
+  <hr>
+
+  <!-- Security warning -->
+  <section class="security-warning">
+    <h3>Security notice</h3>
+    <ul>
+      <li><strong>No code has been read by a human.</strong> This project was written entirely with AI assistance. No human has reviewed the source line by line.</li>
+      <li><strong>The local CA can create certificates for any domain on the whitelist.</strong> Trusting it in your system keychain is a real security risk. A compromised daemon could issue certificates and intercept traffic.</li>
+      <li><strong>Hardcoded defenses exist</strong> (TLD whitelist restricted to <code>.localhost</code>, <code>.test</code>, <code>.internal</code>; full IANA public TLD blocklist), but the potential for man-in-the-middle attacks remains if the CA key is compromised.</li>
+      <li><strong>No binaries are provided.</strong> Clone the repository and run <code>make</code> yourself. Read the code if you can.</li>
+    </ul>
+  </section>
+
+  <hr>
+
+  <!-- Quick start -->
+  <section class="quickstart">
+    <h2>Quick start</h2>
+    <p>Requires Go 1.21+ and root access for port 80.</p>
+    <pre><code>git clone https://github.com/OriPekelman/nameport.git
+cd nameport
+make
+sudo ./nameport-daemon</code></pre>
+    <p>Start any local HTTP server and it appears automatically:</p>
+    <pre><code>cd ~/projects/myapp && python3 -m http.server 3000
+# opens at http://myapp.localhost</code></pre>
+  </section>
+
+  <hr>
+
+  <!-- Links -->
+  <section>
+    <h2>Learn more</h2>
+    <div class="links">
+      <a href="comparison.html">Comparison with dns-to-port</a>
+      <a href="https://github.com/OriPekelman/nameport">GitHub repository</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>MIT License &middot; Ori Pekelman &middot; 2026</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
