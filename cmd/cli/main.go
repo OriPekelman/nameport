@@ -8,10 +8,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"localhost-magic/internal/naming"
 	"localhost-magic/internal/notify"
 	"localhost-magic/internal/storage"
+	"localhost-magic/internal/tls/ca"
+	"localhost-magic/internal/tls/issuer"
+	"localhost-magic/internal/tls/policy"
+	"localhost-magic/internal/tls/trust"
 )
 
 func main() {
@@ -103,6 +108,14 @@ func main() {
 			os.Exit(1)
 		}
 		cmdNotify(os.Args[2:])
+	case "tls":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls <init|status|ensure|list|revoke|rotate|export|untrust>\n")
+			os.Exit(1)
+		}
+		cmdTLS(os.Args[2:])
+	case "cleanup":
+		cmdCleanup()
 	case "remove", "rm":
 		if len(os.Args) < 3 {
 			fmt.Fprintf(os.Stderr, "Usage: localhost-magic remove <name>\n")
@@ -154,28 +167,34 @@ func printUsage() {
 	fmt.Println("  localhost-magic rules list                    List naming rules")
 	fmt.Println("  localhost-magic rules export                  Export rules as JSON")
 	fmt.Println("  localhost-magic rules import <file>           Import user rules from file")
-	fmt.Println("  localhost-magic remove <name>                  Remove a service entry")
-	fmt.Println("  localhost-magic add <name> [host:]<port>       Add manual service entry")
-	fmt.Println("  localhost-magic notify status                  Show notification config")
-	fmt.Println("  localhost-magic notify enable                  Enable notifications")
-	fmt.Println("  localhost-magic notify disable                 Disable notifications")
-	fmt.Println("  localhost-magic notify events <type> on|off    Toggle event type")
-	fmt.Println("  localhost-magic --config <path>               Use custom config path")
+	fmt.Println("  localhost-magic remove <name>                 Remove a service entry")
+	fmt.Println("  localhost-magic add <name> [host:]<port>      Add manual service entry")
+	fmt.Println("  localhost-magic notify status                 Show notification config")
+	fmt.Println("  localhost-magic notify enable                 Enable notifications")
+	fmt.Println("  localhost-magic notify disable                Disable notifications")
+	fmt.Println("  localhost-magic notify events <type> on|off   Toggle event type")
 	fmt.Println()
-	fmt.Println("Arguments:")
-	fmt.Println("  <type> for blacklist: pid, path, or pattern")
-	fmt.Println("  <value>: PID number, executable path, or regex pattern")
+	fmt.Println("TLS Commands:")
+	fmt.Println("  localhost-magic tls init                      Bootstrap CA and install into trust store")
+	fmt.Println("  localhost-magic tls status                    Show CA and trust status")
+	fmt.Println("  localhost-magic tls ensure <domain>           Issue/return cert for domain")
+	fmt.Println("  localhost-magic tls list                      List issued certificates")
+	fmt.Println("  localhost-magic tls rotate                    Rotate intermediate CA")
+	fmt.Println("  localhost-magic tls export <format> <domain>  Export cert config (nginx|caddy|traefik)")
+	fmt.Println("  localhost-magic tls untrust                   Remove CA from OS trust store")
+	fmt.Println()
+	fmt.Println("System Commands:")
+	fmt.Println("  localhost-magic cleanup                       Remove all localhost-magic data and trust entries")
+	fmt.Println()
+	fmt.Println("  localhost-magic --config <path>               Use custom config path")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  localhost-magic list")
 	fmt.Println("  localhost-magic rename myapp.localhost api.localhost")
-	fmt.Println("  localhost-magic keep myapp.localhost")
-	fmt.Println("  localhost-magic keep myapp.localhost false")
-	fmt.Println("  localhost-magic blacklist pid 12345")
-	fmt.Println("  localhost-magic blacklist path /usr/sbin/cupsd")
-	fmt.Println("  localhost-magic blacklist pattern '^localhost-magic'")
-	fmt.Println("  localhost-magic add myapp.localhost 3000")
-	fmt.Println("  localhost-magic add myapp.localhost 192.168.0.1:3000")
+	fmt.Println("  localhost-magic tls init")
+	fmt.Println("  localhost-magic tls ensure myapp.localhost")
+	fmt.Println("  localhost-magic tls export nginx myapp.localhost")
+	fmt.Println("  localhost-magic cleanup")
 }
 
 func cmdList(store *storage.Store) {
@@ -526,4 +545,373 @@ func cmdNotify(args []string) {
 		fmt.Fprintf(os.Stderr, "Usage: localhost-magic notify <status|enable|disable|events>\n")
 		os.Exit(1)
 	}
+}
+
+// caStorePath returns the expanded CA store directory.
+func caStorePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join("/tmp", ".localtls")
+	}
+	return filepath.Join(home, ".localtls")
+}
+
+func cmdTLS(args []string) {
+	subCmd := args[0]
+
+	switch subCmd {
+	case "init":
+		cmdTLSInit()
+	case "status":
+		cmdTLSStatus()
+	case "ensure":
+		if len(args) < 2 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls ensure <domain>\n")
+			os.Exit(1)
+		}
+		cmdTLSEnsure(args[1])
+	case "list":
+		cmdTLSList()
+	case "rotate":
+		cmdTLSRotate()
+	case "export":
+		if len(args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls export <nginx|caddy|traefik> <domain>\n")
+			os.Exit(1)
+		}
+		cmdTLSExport(args[1], args[2])
+	case "untrust":
+		cmdTLSUntrust()
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown tls command: %s\n", subCmd)
+		fmt.Fprintf(os.Stderr, "Usage: localhost-magic tls <init|status|ensure|list|rotate|export|untrust>\n")
+		os.Exit(1)
+	}
+}
+
+func cmdTLSInit() {
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err != nil {
+		log.Fatalf("Failed to access CA store: %v", err)
+	}
+
+	if !tlsCA.IsInitialized() {
+		fmt.Println("Bootstrapping new certificate authority...")
+		if err := tlsCA.Init(); err != nil {
+			log.Fatalf("Failed to initialize CA: %v", err)
+		}
+		fmt.Printf("CA created at %s\n", storePath)
+	} else {
+		fmt.Println("CA already initialized.")
+	}
+
+	// Install into trust store
+	trustor := trust.NewPlatformTrustor()
+	if trustor.IsInstalled(tlsCA.RootCertPEM()) {
+		fmt.Println("Root CA is already trusted by the OS.")
+		return
+	}
+
+	if trustor.NeedsElevation() {
+		fmt.Println("Installing root CA into system trust store (may require sudo)...")
+	} else {
+		fmt.Println("Installing root CA into system trust store...")
+	}
+
+	if err := trustor.Install(tlsCA.RootCertPEM()); err != nil {
+		log.Fatalf("Failed to install CA: %v\nYou may need to run this command with sudo.", err)
+	}
+
+	fmt.Println("Root CA installed and trusted.")
+	fmt.Println("HTTPS is now available for all .localhost domains.")
+}
+
+func cmdTLSStatus() {
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err != nil {
+		log.Fatalf("Failed to access CA store: %v", err)
+	}
+
+	fmt.Printf("CA Store: %s\n", storePath)
+
+	if !tlsCA.IsInitialized() {
+		fmt.Println("Status: NOT INITIALIZED")
+		fmt.Println("  Run 'localhost-magic tls init' to bootstrap the CA.")
+		return
+	}
+
+	fmt.Println("Status: INITIALIZED")
+	fmt.Printf("  Root CA:         %s\n", tlsCA.RootCert.Subject.CommonName)
+	fmt.Printf("  Root expires:    %s\n", tlsCA.RootCert.NotAfter.Format("2006-01-02"))
+	fmt.Printf("  Intermediate:    %s\n", tlsCA.InterCert.Subject.CommonName)
+	fmt.Printf("  Inter expires:   %s\n", tlsCA.InterCert.NotAfter.Format("2006-01-02"))
+
+	// Check if intermediate needs rotation
+	if time.Until(tlsCA.InterCert.NotAfter) < 30*24*time.Hour {
+		fmt.Println("  WARNING: Intermediate CA expires within 30 days. Run 'localhost-magic tls rotate'.")
+	}
+
+	// Check trust status
+	trustor := trust.NewPlatformTrustor()
+	if trustor.IsInstalled(tlsCA.RootCertPEM()) {
+		fmt.Println("  OS Trust:        INSTALLED")
+	} else {
+		fmt.Println("  OS Trust:        NOT INSTALLED")
+		fmt.Println("    Run 'sudo localhost-magic tls init' to install into system trust store.")
+	}
+
+	// List issued certs
+	certsDir := filepath.Join(storePath, "certs")
+	entries, err := os.ReadDir(certsDir)
+	if err == nil {
+		certCount := 0
+		for _, e := range entries {
+			if strings.HasSuffix(e.Name(), ".pem") {
+				certCount++
+			}
+		}
+		fmt.Printf("  Issued certs:    %d\n", certCount)
+	}
+}
+
+func cmdTLSEnsure(domain string) {
+	// Ensure .localhost suffix for bare names
+	if !strings.Contains(domain, ".") {
+		domain = domain + ".localhost"
+	}
+
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err != nil {
+		log.Fatalf("Failed to access CA store: %v", err)
+	}
+
+	if !tlsCA.IsInitialized() {
+		log.Fatalf("CA not initialized. Run 'localhost-magic tls init' first.")
+	}
+
+	pol := policy.NewPolicy()
+	iss := issuer.NewIssuer(tlsCA, pol)
+
+	// Build DNS names: for wildcards, also include the base domain
+	dnsNames := []string{domain}
+	if strings.HasPrefix(domain, "*.") {
+		base := domain[2:]
+		dnsNames = append(dnsNames, base)
+	}
+
+	cached, err := iss.Issue(issuer.IssueRequest{
+		DNSNames: dnsNames,
+	})
+	if err != nil {
+		log.Fatalf("Failed to issue certificate: %v", err)
+	}
+
+	// Save cert and key to disk
+	certsDir := filepath.Join(storePath, "certs")
+	if err := os.MkdirAll(certsDir, 0700); err != nil {
+		log.Fatalf("Failed to create certs directory: %v", err)
+	}
+
+	// Use sanitized filename
+	safeName := strings.ReplaceAll(strings.ReplaceAll(domain, "*", "_wildcard"), "/", "_")
+	certPath := filepath.Join(certsDir, safeName+".pem")
+	keyPath := filepath.Join(certsDir, safeName+".key")
+
+	if err := os.WriteFile(certPath, cached.CertPEM, 0644); err != nil {
+		log.Fatalf("Failed to write certificate: %v", err)
+	}
+	if err := os.WriteFile(keyPath, cached.KeyPEM, 0600); err != nil {
+		log.Fatalf("Failed to write key: %v", err)
+	}
+
+	fmt.Printf("Certificate issued for: %s\n", strings.Join(dnsNames, ", "))
+	fmt.Printf("  Cert: %s\n", certPath)
+	fmt.Printf("  Key:  %s\n", keyPath)
+	fmt.Printf("  Expires: %s\n", cached.Expiry.Format("2006-01-02 15:04:05"))
+}
+
+func cmdTLSList() {
+	storePath := caStorePath()
+	certsDir := filepath.Join(storePath, "certs")
+
+	entries, err := os.ReadDir(certsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("No certificates issued yet.")
+			return
+		}
+		log.Fatalf("Failed to read certs directory: %v", err)
+	}
+
+	certFiles := []string{}
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".pem") {
+			certFiles = append(certFiles, e.Name())
+		}
+	}
+
+	if len(certFiles) == 0 {
+		fmt.Println("No certificates issued yet.")
+		return
+	}
+
+	fmt.Printf("%-40s %s\n", "DOMAIN", "CERT FILE")
+	fmt.Println(strings.Repeat("-", 70))
+
+	for _, f := range certFiles {
+		domain := strings.TrimSuffix(f, ".pem")
+		domain = strings.ReplaceAll(domain, "_wildcard", "*")
+		fmt.Printf("%-40s %s\n", domain, filepath.Join(certsDir, f))
+	}
+}
+
+func cmdTLSRotate() {
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err != nil {
+		log.Fatalf("Failed to access CA store: %v", err)
+	}
+
+	if !tlsCA.IsInitialized() {
+		log.Fatalf("CA not initialized. Run 'localhost-magic tls init' first.")
+	}
+
+	fmt.Println("Rotating intermediate CA...")
+	if err := tlsCA.RotateIntermediate(); err != nil {
+		log.Fatalf("Failed to rotate intermediate: %v", err)
+	}
+
+	fmt.Println("Intermediate CA rotated successfully.")
+	fmt.Printf("  New expiry: %s\n", tlsCA.InterCert.NotAfter.Format("2006-01-02"))
+	fmt.Println("Note: Existing leaf certificates remain valid until they expire.")
+}
+
+func cmdTLSExport(format, domain string) {
+	// Ensure .localhost suffix for bare names
+	if !strings.Contains(domain, ".") {
+		domain = domain + ".localhost"
+	}
+
+	storePath := caStorePath()
+	certsDir := filepath.Join(storePath, "certs")
+	safeName := strings.ReplaceAll(strings.ReplaceAll(domain, "*", "_wildcard"), "/", "_")
+	certPath := filepath.Join(certsDir, safeName+".pem")
+	keyPath := filepath.Join(certsDir, safeName+".key")
+
+	// Check if cert exists, issue if not
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		fmt.Printf("No certificate found for %s. Issuing one...\n", domain)
+		cmdTLSEnsure(domain)
+	}
+
+	switch strings.ToLower(format) {
+	case "nginx":
+		fmt.Printf("# nginx SSL configuration for %s\n", domain)
+		fmt.Printf("server {\n")
+		fmt.Printf("    listen 443 ssl;\n")
+		fmt.Printf("    server_name %s;\n\n", domain)
+		fmt.Printf("    ssl_certificate     %s;\n", certPath)
+		fmt.Printf("    ssl_certificate_key %s;\n", keyPath)
+		fmt.Printf("    ssl_protocols       TLSv1.2 TLSv1.3;\n")
+		fmt.Printf("}\n")
+
+	case "caddy":
+		fmt.Printf("# Caddy configuration for %s\n", domain)
+		fmt.Printf("%s {\n", domain)
+		fmt.Printf("    tls %s %s\n", certPath, keyPath)
+		fmt.Printf("    reverse_proxy localhost:PORT\n")
+		fmt.Printf("}\n")
+
+	case "traefik":
+		fmt.Printf("# Traefik dynamic configuration for %s\n", domain)
+		fmt.Printf("tls:\n")
+		fmt.Printf("  certificates:\n")
+		fmt.Printf("    - certFile: %s\n", certPath)
+		fmt.Printf("      keyFile: %s\n", keyPath)
+
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown export format: %s\n", format)
+		fmt.Fprintf(os.Stderr, "Supported formats: nginx, caddy, traefik\n")
+		os.Exit(1)
+	}
+}
+
+func cmdTLSUntrust() {
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err != nil {
+		log.Fatalf("Failed to access CA store: %v", err)
+	}
+
+	if !tlsCA.IsInitialized() {
+		fmt.Println("CA not initialized. Nothing to untrust.")
+		return
+	}
+
+	trustor := trust.NewPlatformTrustor()
+	if !trustor.IsInstalled(tlsCA.RootCertPEM()) {
+		fmt.Println("Root CA is not in the system trust store.")
+		return
+	}
+
+	fmt.Println("Removing root CA from system trust store...")
+	if err := trustor.Uninstall(); err != nil {
+		log.Fatalf("Failed to remove CA: %v\nYou may need to run this command with sudo.", err)
+	}
+
+	fmt.Println("Root CA removed from system trust store.")
+}
+
+func cmdCleanup() {
+	fmt.Println("localhost-magic cleanup")
+	fmt.Println("This will remove:")
+	fmt.Println("  - Root CA from system trust store")
+	fmt.Println("  - All CA material and issued certificates")
+	fmt.Println("  - Service records and configuration")
+	fmt.Println()
+
+	// Remove CA from trust store
+	storePath := caStorePath()
+	tlsCA, err := ca.NewCA(storePath)
+	if err == nil && tlsCA.IsInitialized() {
+		trustor := trust.NewPlatformTrustor()
+		if trustor.IsInstalled(tlsCA.RootCertPEM()) {
+			fmt.Println("Removing root CA from system trust store...")
+			if err := trustor.Uninstall(); err != nil {
+				fmt.Printf("Warning: failed to remove CA from trust store: %v\n", err)
+				fmt.Println("  You may need to run 'sudo localhost-magic tls untrust' separately.")
+			} else {
+				fmt.Println("  Root CA removed from trust store.")
+			}
+		}
+	}
+
+	// Remove CA store
+	if _, err := os.Stat(storePath); err == nil {
+		fmt.Printf("Removing CA store: %s\n", storePath)
+		if err := os.RemoveAll(storePath); err != nil {
+			fmt.Printf("Warning: failed to remove CA store: %v\n", err)
+		} else {
+			fmt.Println("  CA store removed.")
+		}
+	}
+
+	// Remove service config
+	configDir := filepath.Dir(storage.DefaultStorePath())
+	if _, err := os.Stat(configDir); err == nil {
+		fmt.Printf("Removing configuration: %s\n", configDir)
+		if err := os.RemoveAll(configDir); err != nil {
+			fmt.Printf("Warning: failed to remove config: %v\n", err)
+		} else {
+			fmt.Println("  Configuration removed.")
+		}
+	}
+
+	fmt.Println()
+	fmt.Println("Cleanup complete. localhost-magic data has been removed.")
+	fmt.Println("Note: If the daemon is installed as a system service, run:")
+	fmt.Println("  sudo localhost-magic uninstall")
 }

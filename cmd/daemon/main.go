@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -10,9 +11,11 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/signal"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"localhost-magic/internal/naming"
@@ -20,6 +23,10 @@ import (
 	"localhost-magic/internal/portscan"
 	"localhost-magic/internal/probe"
 	"localhost-magic/internal/storage"
+	"localhost-magic/internal/tls/ca"
+	"localhost-magic/internal/tls/issuer"
+	"localhost-magic/internal/tls/policy"
+	"localhost-magic/internal/tls/trust"
 )
 
 // Service represents a discovered HTTP service
@@ -52,6 +59,23 @@ type Server struct {
 	services       map[string]*Service // key = name
 	mu             sync.RWMutex
 	pollInterval   time.Duration
+	tlsCA          *ca.CA
+	tlsIssuer      *issuer.Issuer
+	tlsTrustor     trust.Trustor
+	tlsEnabled     bool
+}
+
+// DefaultCAStorePath is the default location for CA material.
+const DefaultCAStorePath = "~/.localtls"
+
+// expandHome replaces a leading ~ with the user's home directory.
+func expandHome(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		if home, err := os.UserHomeDir(); err == nil {
+			return home + path[1:]
+		}
+	}
+	return path
 }
 
 func main() {
@@ -91,6 +115,47 @@ func main() {
 		pollInterval:   2 * time.Second,
 	}
 
+	// Initialize TLS CA
+	caStorePath := expandHome(DefaultCAStorePath)
+	tlsCA, err := ca.NewCA(caStorePath)
+	if err != nil {
+		log.Printf("Warning: TLS CA initialization failed: %v (HTTPS disabled)", err)
+	} else if !tlsCA.IsInitialized() {
+		log.Println("TLS CA not initialized. Bootstrapping new CA...")
+		if err := tlsCA.Init(); err != nil {
+			log.Printf("Warning: TLS CA bootstrap failed: %v (HTTPS disabled)", err)
+		} else {
+			log.Println("TLS CA initialized successfully.")
+		}
+	}
+
+	if tlsCA != nil && tlsCA.IsInitialized() {
+		srv.tlsCA = tlsCA
+		srv.tlsTrustor = trust.NewPlatformTrustor()
+		pol := policy.NewPolicy()
+		srv.tlsIssuer = issuer.NewIssuer(tlsCA, pol)
+		srv.tlsEnabled = true
+
+		// Check if CA is trusted by the OS
+		if !srv.tlsTrustor.IsInstalled(tlsCA.RootCertPEM()) {
+			if srv.tlsTrustor.NeedsElevation() {
+				log.Println("WARNING: Root CA is not trusted by the OS.")
+				log.Println("  Run 'sudo localhost-magic tls init' to install the CA into the system trust store.")
+				log.Println("  HTTPS will work but browsers will show certificate warnings.")
+			} else {
+				log.Println("Installing root CA into system trust store...")
+				if err := srv.tlsTrustor.Install(tlsCA.RootCertPEM()); err != nil {
+					log.Printf("Warning: failed to install CA: %v", err)
+					log.Println("  HTTPS will work but browsers will show certificate warnings.")
+				} else {
+					log.Println("Root CA installed into system trust store.")
+				}
+			}
+		} else {
+			log.Println("TLS CA is trusted by the OS.")
+		}
+	}
+
 	// Load existing services into generator to avoid name collisions
 	for _, record := range store.List() {
 		srv.generator.GenerateName(record.ExePath, "", record.Args) // Mark name as used
@@ -117,17 +182,82 @@ func main() {
 	go srv.discoveryLoop()
 
 	// Setup HTTP handler
-	http.HandleFunc("/", srv.handleRequest)
-	http.HandleFunc("/api/services", srv.handleAPIServices)
-	http.HandleFunc("/api/rename", srv.handleAPIRename)
-	http.HandleFunc("/api/blacklist", srv.handleAPIBlacklist)
-	http.HandleFunc("/api/keep", srv.handleAPIKeep)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", srv.handleRequest)
+	mux.HandleFunc("/api/services", srv.handleAPIServices)
+	mux.HandleFunc("/api/rename", srv.handleAPIRename)
+	mux.HandleFunc("/api/blacklist", srv.handleAPIBlacklist)
+	mux.HandleFunc("/api/keep", srv.handleAPIKeep)
 
 	log.Println("localhost-magic daemon starting...")
 	log.Printf("Storage: %s", storePath)
-	log.Println("Listening on :80 (requires root)")
-	log.Println("Dashboard: http://localhost/ (when no hostname matches)")
-	log.Fatal(http.ListenAndServe(":80", nil))
+
+	// HTTP server on :80
+	httpServer := &http.Server{
+		Addr:    ":80",
+		Handler: mux,
+	}
+
+	// HTTPS server on :443 (if TLS is enabled)
+	var httpsServer *http.Server
+	if srv.tlsEnabled {
+		tlsConfig := &tls.Config{
+			GetCertificate: srv.tlsIssuer.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		}
+		httpsServer = &http.Server{
+			Addr:      ":443",
+			Handler:   srv.addForwardedProto(mux),
+			TLSConfig: tlsConfig,
+		}
+	}
+
+	// Graceful shutdown on SIGINT/SIGTERM
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// Start HTTP listener
+	go func() {
+		log.Println("Listening on :80 (HTTP)")
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
+	// Start HTTPS listener
+	if httpsServer != nil {
+		go func() {
+			log.Println("Listening on :443 (HTTPS, dynamic certs via local CA)")
+			// ListenAndServeTLS with empty cert/key because GetCertificate handles it
+			if err := httpsServer.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+				log.Printf("HTTPS server error: %v (HTTPS disabled)", err)
+			}
+		}()
+	}
+
+	log.Println("Dashboard: http://localhost/ or https://localhost/")
+
+	// Wait for shutdown signal
+	<-ctx.Done()
+	log.Println("Shutting down...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if httpsServer != nil {
+		httpsServer.Shutdown(shutdownCtx)
+	}
+	httpServer.Shutdown(shutdownCtx)
+
+	log.Println("Daemon stopped.")
+}
+
+// addForwardedProto wraps a handler to add X-Forwarded-Proto: https
+func (s *Server) addForwardedProto(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("X-Forwarded-Proto", "https")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // discoveryLoop continuously scans for new services
@@ -158,8 +288,8 @@ func (s *Server) discover() {
 	seenNames := make(map[string]bool)
 
 	for _, listener := range listeners {
-		// Skip ourselves (port 80)
-		if listener.Port == 80 {
+		// Skip ourselves (port 80 and 443)
+		if listener.Port == 80 || listener.Port == 443 {
 			continue
 		}
 
@@ -318,10 +448,10 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.RLock()
-	service, ok := s.services[host]
+	service := s.findService(host)
 	s.mu.RUnlock()
 
-	if !ok {
+	if service == nil {
 		// No service found - show dashboard with message
 		s.serveDashboardWithError(w, r, fmt.Sprintf("No service found for %s", host))
 		return
@@ -358,6 +488,18 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	r.Host = fmt.Sprintf("%s:%d", service.TargetHost, service.Port)
 
 	service.Proxy.ServeHTTP(w, r)
+}
+
+// findService looks up a service by hostname. It first tries an exact match,
+// then tries the full hostname as a service name (for subdomain-style names
+// like "api.ollama.localhost" which are stored as the full name).
+// Must be called with s.mu held (at least RLock).
+func (s *Server) findService(host string) *Service {
+	// Exact match (covers both "ollama.localhost" and "api.ollama.localhost")
+	if svc, ok := s.services[host]; ok {
+		return svc
+	}
+	return nil
 }
 
 // serveDashboard renders the admin dashboard HTML
@@ -412,15 +554,17 @@ func (s *Server) serveDashboardWithError(w http.ResponseWriter, r *http.Request,
 	}
 
 	data := struct {
-		Services []*Service
-		Groups   []ServiceGroup
-		ErrorMsg string
-		Hostname string
+		Services   []*Service
+		Groups     []ServiceGroup
+		ErrorMsg   string
+		Hostname   string
+		TLSEnabled bool
 	}{
-		Services: services,
-		Groups:   groups,
-		ErrorMsg: errorMsg,
-		Hostname: r.Host,
+		Services:   services,
+		Groups:     groups,
+		ErrorMsg:   errorMsg,
+		Hostname:   r.Host,
+		TLSEnabled: s.tlsEnabled,
 	}
 
 	tmpl := template.Must(template.New("dashboard").Parse(dashboardHTML))
@@ -948,7 +1092,7 @@ const dashboardHTML = `<!DOCTYPE html>
                         <td>
                             <div class="name-cell">
                                 <span class="status-dot ok" title="Checking..."></span>
-                                http://<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">{{.Name}}</a>
+                                {{if $.TLSEnabled}}<a href="https://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">https://{{.Name}}</a>{{else}}<a href="http://{{.Name}}" class="service-link" target="_blank" id="link-{{.Name}}">http://{{.Name}}</a>{{end}}
                                 <button class="btn-icon" onclick="openRenameModal('{{.Name}}')" title="Rename">Edit</button>
                             </div>
                         </td>

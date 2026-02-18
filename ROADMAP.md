@@ -10,8 +10,8 @@ This document describes the planned evolution of localhost-magic. Each milestone
 
 ```
 cmd/
-  cli/main.go                CLI tool (list, rename, keep, add, blacklist, rules)
-  daemon/main.go             HTTP daemon + reverse proxy + dashboard
+  cli/main.go                CLI tool (list, rename, keep, add, blacklist, rules, tls, cleanup)
+  daemon/main.go             HTTP/HTTPS daemon + reverse proxy + dashboard + TLS
 
 internal/
   discovery/docker/          Docker container auto-detection (3.1) ✅
@@ -29,6 +29,8 @@ internal/
   system/                    systemd/launchd auto-start (6.1) ✅
   tls/
     ca/                      Two-tier Ed25519 certificate authority (2.1) ✅
+    trust/                   OS trust store integration (2.2) ✅
+    issuer/                  Leaf certificate issuance with caching (2.3) ✅
     policy/                  Domain policy with IANA TLD blocklist (2.4) ✅
 ```
 
@@ -41,6 +43,8 @@ type ServiceRecord struct {
     Args                          []string
     UserDefined, IsActive, Keep   bool
     LastSeen                      time.Time
+    Group                         string // (1.3) ✅
+    UseTLS                        bool   // (2.5) ✅
 }
 ```
 
@@ -120,7 +124,7 @@ These items strengthen the existing codebase without adding new user-facing feat
 
 ---
 
-### 1.3 Service Groups and Subdomain Auto-Grouping
+### 1.3 Service Groups and Subdomain Auto-Grouping ✅
 
 **Problem**: When multiple services share a common prefix (e.g. `ollama`, `ollama-1`, `ollama-2`), they show as flat siblings. It would be more natural to present them as `api.ollama.localhost`, `web.ollama.localhost`.
 
@@ -194,7 +198,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 2.2 Trust Bootstrap (`internal/tls/trust`)
+### 2.2 Trust Bootstrap (`internal/tls/trust`) ✅
 
 **Problem**: The root CA must be trusted by the OS and browsers.
 
@@ -213,7 +217,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 2.3 Certificate Issuer (`internal/tls/issuer`)
+### 2.3 Certificate Issuer (`internal/tls/issuer`) ✅
 
 **Problem**: Need fast, on-demand leaf certificate issuance.
 
@@ -263,7 +267,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 2.5 Daemon HTTPS Listener
+### 2.5 Daemon HTTPS Listener ✅
 
 **Problem**: The daemon currently only serves HTTP on port 80.
 
@@ -281,7 +285,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ---
 
-### 2.6 CLI and Export Commands
+### 2.6 CLI and Export Commands ✅
 
 - `localhost-magic tls init` — bootstrap CA + trust (one-time sudo)
 - `localhost-magic tls ensure <domain>` — issue/return cert paths
@@ -563,17 +567,17 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ```
 Milestone 1 (Core Hardening)
-  1.1 Persistent Blacklist     ─── no deps
-  1.2 Naming Heuristics        ─── no deps
-  1.3 Subdomain Grouping       ─── no deps (benefits from 1.2)
+  1.1 Persistent Blacklist     ─── no deps                          ✅
+  1.2 Naming Heuristics        ─── no deps                          ✅
+  1.3 Subdomain Grouping       ─── no deps (benefits from 1.2)      ✅
 
 Milestone 2 (TLS)
-  2.1 CA Management            ─── no deps
-  2.2 Trust Bootstrap          ─── depends on 2.1
-  2.3 Certificate Issuer       ─── depends on 2.1
-  2.4 Domain Policy            ─── no deps (consumed by 2.3)
-  2.5 Daemon HTTPS Listener    ─── depends on 2.2, 2.3, 2.4
-  2.6 CLI & Export             ─── depends on 2.1, 2.2, 2.3
+  2.1 CA Management            ─── no deps                          ✅
+  2.2 Trust Bootstrap          ─── depends on 2.1                   ✅
+  2.3 Certificate Issuer       ─── depends on 2.1                   ✅
+  2.4 Domain Policy            ─── no deps (consumed by 2.3)        ✅
+  2.5 Daemon HTTPS Listener    ─── depends on 2.2, 2.3, 2.4        ✅
+  2.6 CLI & Export             ─── depends on 2.1, 2.2, 2.3         ✅
 
 Milestone 3 (Containers)
   3.1 Docker Auto-Detection    ─── no deps

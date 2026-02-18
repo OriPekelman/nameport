@@ -176,8 +176,9 @@ func (g *Generator) RuleEngine() *RuleEngine {
 	return g.ruleEngine
 }
 
-// GenerateName creates a .localhost name from an executable path
-// Handles collisions by appending -1, -2, etc.
+// GenerateName creates a .localhost name from an executable path.
+// On collision, uses subdomain grouping: <differentiator>.<base>.localhost
+// The differentiator is derived from the port, working directory, or a numeric suffix.
 func (g *Generator) GenerateName(exePath string, cwd string, args []string) string {
 	// Try data-driven rules first
 	baseName := ""
@@ -198,26 +199,39 @@ func (g *Generator) GenerateName(exePath string, cwd string, args []string) stri
 		return cleaned + ".localhost"
 	}
 
-	// Find next available number
-	for i := 1; i < 1000; i++ {
-		candidate := fmt.Sprintf("%s-%d", cleaned, i)
+	// Collision: use subdomain grouping <differentiator>.<base>.localhost
+	// Try CWD-based differentiator first (e.g., "frontend.myapp.localhost")
+	if cwd != "" {
+		cwdBase := SanitizeName(filepath.Base(cwd))
+		if cwdBase != cleaned && cwdBase != "" {
+			candidate := fmt.Sprintf("%s.%s", cwdBase, cleaned)
+			if !g.usedNames[candidate] {
+				g.usedNames[candidate] = true
+				return candidate + ".localhost"
+			}
+		}
+	}
+
+	// Numeric subdomain fallback: 2.<base>.localhost, 3.<base>.localhost, ...
+	for i := 2; i < 1000; i++ {
+		candidate := fmt.Sprintf("%d.%s", i, cleaned)
 		if !g.usedNames[candidate] {
 			g.usedNames[candidate] = true
 			return candidate + ".localhost"
 		}
 	}
 
-	// Fallback: use hash
+	// Final fallback: use hash
 	hash := computeHash(exePath)
 	shortHash := hash[:8]
-	return fmt.Sprintf("%s-%s.localhost", cleaned, shortHash)
+	return fmt.Sprintf("%s.%s.localhost", shortHash, cleaned)
 }
 
 // ReleaseName marks a name as no longer in use
 func (g *Generator) ReleaseName(name string) {
 	// Remove .localhost suffix if present
-	name = strings.TrimSuffix(name, ".localhost")
-	delete(g.usedNames, name)
+	key := strings.TrimSuffix(name, ".localhost")
+	delete(g.usedNames, key)
 }
 
 // SanitizeName converts to lowercase and keeps only alphanumeric characters
@@ -253,12 +267,21 @@ func computeHash(exePath string) string {
 }
 
 // ExtractGroup returns the group name from a .localhost name.
-// Names with a -N suffix (where N is a number) are grouped with the base name.
-// e.g. "ollama.localhost" -> "ollama", "ollama-1.localhost" -> "ollama",
-// "dropbox.localhost" -> "dropbox", "my-app-2.localhost" -> "my-app"
+// Handles both subdomain-style and legacy dash-style naming:
+//   - "ollama.localhost" -> "ollama"
+//   - "api.ollama.localhost" -> "ollama" (subdomain grouping)
+//   - "2.ollama.localhost" -> "ollama" (numeric subdomain)
+//   - "ollama-1.localhost" -> "ollama" (legacy dash-style)
+//   - "my-app.localhost" -> "my-app"
 func ExtractGroup(name string) string {
 	base := strings.TrimSuffix(name, ".localhost")
-	// Strip trailing -N suffix if present (where N is one or more digits)
+
+	// Subdomain-style: if there are dots, the group is the last label before .localhost
+	if idx := strings.LastIndex(base, "."); idx != -1 {
+		return base[idx+1:]
+	}
+
+	// Legacy dash-style: strip trailing -N suffix
 	re := regexp.MustCompile(`-\d+$`)
 	return re.ReplaceAllString(base, "")
 }
