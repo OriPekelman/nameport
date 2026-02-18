@@ -139,7 +139,7 @@ Full spec in [docs/specs/local-tls-authority.md](docs/specs/local-tls-authority.
 
 This is the largest single feature. It is designed as a standalone `internal/tls` package with a clean Go API so the daemon, CLI, and future GUI can all consume it identically.
 
-### 2.1 Root & Intermediate CA Management (`internal/tls/ca`)
+### 2.1 Root & Intermediate CA Management (`internal/tls/ca`) ✅
 
 **Problem**: No local certificate authority exists.
 
