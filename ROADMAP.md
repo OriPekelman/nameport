@@ -290,7 +290,7 @@ This is the largest single feature. It is designed as a standalone `internal/tls
 
 ## Milestone 3 — Container & VM Integration
 
-### 3.1 Docker Container Auto-Detection (`internal/discovery/docker`)
+### 3.1 ✅ Docker Container Auto-Detection (`internal/discovery/docker`)
 
 **Problem**: Docker containers listening on mapped ports are not discovered because the daemon only scans host-level ports.
 
