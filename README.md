@@ -4,7 +4,7 @@
 
 Start any local server, and it's instantly reachable at a human-friendly URL. No config files, no `/etc/hosts` edits, no DNS servers. Just run your service and open `http://myapp.localhost`.
 
-Inspired by [dns-to-port](https://github.com/FlorianMargworthy) by Florian Margaine. See [COMPARISON.md](COMPARISON.md) for a detailed comparison.
+Inspired by [dns-to-port](https://github.com/ralt/dns-to-port) by Florian Margaine. See [COMPARISON.md](COMPARISON.md) for a detailed comparison.
 
 Website: [nameport.eu](https://nameport.eu)
 
