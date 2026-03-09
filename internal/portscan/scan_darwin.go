@@ -23,7 +23,7 @@ func Scan() ([]Listener, error) {
 	}
 
 	// Parse lsof output
-	portToPID := make(map[int]int)
+	portToPID := make(map[Address]int)
 	var currentPID int
 
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
@@ -35,6 +35,12 @@ func Scan() ([]Listener, error) {
 
 		prefix := line[0]
 		value := line[1:]
+		address := ""
+
+		idx := strings.LastIndex(value, ":")
+		if idx != -1 {
+			address = value[:idx]
+		}
 
 		switch prefix {
 		case 'p':
@@ -47,7 +53,10 @@ func Scan() ([]Listener, error) {
 			// Network address line: "127.0.0.1:3000" or "*:3000" or "[::1]:3000"
 			port := parsePort(value)
 			if port > 0 && currentPID > 0 {
-				portToPID[port] = currentPID
+				portToPID[Address{
+					Host: address,
+					Port: port,
+				}] = currentPID
 			}
 		}
 	}
@@ -58,7 +67,7 @@ func Scan() ([]Listener, error) {
 
 	// Build listener list
 	var listeners []Listener
-	for port, pid := range portToPID {
+	for address, pid := range portToPID {
 		exePath, cwd, args, err := getProcessInfo(pid)
 		if err != nil {
 			// Process may have exited, skip
@@ -66,7 +75,7 @@ func Scan() ([]Listener, error) {
 		}
 
 		listeners = append(listeners, Listener{
-			Port:    port,
+			Address: address,
 			PID:     pid,
 			ExePath: exePath,
 			Cwd:     cwd,
