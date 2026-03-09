@@ -31,17 +31,16 @@ import (
 
 // Service represents a discovered HTTP service
 type Service struct {
-	ID         string
-	Name       string
-	Port       int
-	TargetHost string // Target IP/host (default: 127.0.0.1)
-	PID        int
-	ExePath    string
-	Cwd        string
-	Args       []string
-	Group      string // Service group for visual grouping
-	UseTLS     bool
-	Proxy      *httputil.ReverseProxy
+	ID      string
+	Name    string
+	Address portscan.Address
+	PID     int
+	ExePath string
+	Cwd     string
+	Args    []string
+	Group   string // Service group for visual grouping
+	UseTLS  bool
+	Proxy   *httputil.ReverseProxy
 }
 
 // ServiceGroup represents a group of related services for dashboard display
@@ -202,17 +201,16 @@ func main() {
 			record.Group = naming.ExtractGroupFromExe(record.ExePath, record.Name)
 		}
 		srv.services[record.Name] = &Service{
-			ID:         record.ID,
-			Name:       record.Name,
-			Port:       record.Port,
-			TargetHost: record.EffectiveTargetHost(),
-			PID:        record.PID,
-			ExePath:    record.ExePath,
-			Cwd:        "",
-			Args:       record.Args,
-			Group:      record.Group,
-			UseTLS:     record.UseTLS,
-			Proxy:      nil, // Will be created on first use
+			ID:      record.ID,
+			Name:    record.Name,
+			Address: record.Address,
+			PID:     record.PID,
+			ExePath: record.ExePath,
+			Cwd:     "",
+			Args:    record.Args,
+			Group:   record.Group,
+			UseTLS:  record.UseTLS,
+			Proxy:   nil, // Will be created on first use
 		}
 	}
 
@@ -340,7 +338,7 @@ func (s *Server) discover() {
 
 	for _, listener := range listeners {
 		// Skip our own ports
-		if listener.Port == s.httpPort || listener.Port == s.httpsPort {
+		if listener.Address.Port == s.httpPort || listener.Address.Port == s.httpsPort {
 			continue
 		}
 
@@ -353,9 +351,9 @@ func (s *Server) discover() {
 		if s.blacklistStore.IsBlacklistedPID(listener.PID) {
 			continue
 		}
-
 		// Detect protocol (HTTP or HTTPS)
-		proto := probe.DetectProtocol("127.0.0.1", listener.Port)
+		proto := probe.DetectProtocol(listener.Address.Host, listener.Address.Port)
+
 		if proto == probe.ProtoNone {
 			continue
 		}
@@ -371,8 +369,8 @@ func (s *Server) discover() {
 
 			// Update if port, PID, or active status changed
 			needsSave := false
-			if existing.Port != listener.Port {
-				existing.Port = listener.Port
+			if existing.Address.Port != listener.Address.Port {
+				existing.Address.Port = listener.Address.Port
 				needsSave = true
 			}
 			if existing.PID != listener.PID {
@@ -400,7 +398,7 @@ func (s *Server) discover() {
 			// Update runtime service
 			s.mu.Lock()
 			if svc, exists := s.services[existing.Name]; exists {
-				svc.Port = listener.Port
+				svc.Address.Port = listener.Address.Port
 				svc.PID = listener.PID
 				svc.Cwd = listener.Cwd
 				if svc.UseTLS != useTLS {
@@ -419,7 +417,7 @@ func (s *Server) discover() {
 		record := &storage.ServiceRecord{
 			ID:          id,
 			Name:        name,
-			Port:        listener.Port,
+			Address:     listener.Address,
 			PID:         listener.PID,
 			ExePath:     listener.ExePath,
 			Args:        listener.Args,
@@ -440,16 +438,15 @@ func (s *Server) discover() {
 		// Add to runtime services
 		s.mu.Lock()
 		s.services[name] = &Service{
-			ID:         id,
-			Name:       name,
-			Port:       listener.Port,
-			TargetHost: "127.0.0.1",
-			PID:        listener.PID,
-			ExePath:    listener.ExePath,
-			Cwd:        listener.Cwd,
-			Args:       listener.Args,
-			Group:      record.Group,
-			UseTLS:     useTLS,
+			ID:      id,
+			Name:    name,
+			Address: listener.Address,
+			PID:     listener.PID,
+			ExePath: listener.ExePath,
+			Cwd:     listener.Cwd,
+			Args:    listener.Args,
+			Group:   record.Group,
+			UseTLS:  useTLS,
 		}
 		s.mu.Unlock()
 
@@ -458,12 +455,12 @@ func (s *Server) discover() {
 		if useTLS {
 			scheme = "https"
 		}
-		log.Printf("New service: %s -> %s://127.0.0.1:%d (%s)", name, scheme, listener.Port, listener.ExePath)
+		log.Printf("New service: %s -> %s://%s:%d (%s)", name, scheme, listener.Address.Host, listener.Address.Port, listener.ExePath)
 
 		if err := s.notifyManager.Notify(notify.Notification{
 			Event:   notify.EventServiceDiscovered,
 			Title:   "Service Discovered",
-			Message: fmt.Sprintf("%s is now available on port %d", name, listener.Port),
+			Message: fmt.Sprintf("%s is now available on port %d", name, listener.Address.Port),
 			URL:     s.serviceURL(name),
 		}); err != nil {
 			log.Printf("Notification error: %v", err)
@@ -524,7 +521,7 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		if service.UseTLS {
 			scheme = "https"
 		}
-		targetURL := fmt.Sprintf("%s://%s:%d", scheme, service.TargetHost, service.Port)
+		targetURL := fmt.Sprintf("%s://%s:%d", scheme, service.Address.Host, service.Address.Port)
 		target, err := url.Parse(targetURL)
 		if err != nil {
 			http.Error(w, "Invalid target URL", http.StatusInternalServerError)
@@ -546,7 +543,7 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Update Host header to match the backend
 	r.Header.Set("X-Forwarded-Host", r.Host)
-	r.Host = fmt.Sprintf("%s:%d", service.TargetHost, service.Port)
+	r.Host = fmt.Sprintf("%s:%d", service.Address.Host, service.Address.Port)
 
 	service.Proxy.ServeHTTP(w, r)
 }
@@ -714,7 +711,7 @@ func (s *Server) handleAPIServices(w http.ResponseWriter, r *http.Request) {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 		}
-		targetHost := svc.TargetHost
+		targetHost := svc.Address.Host
 		if targetHost == "" {
 			targetHost = "127.0.0.1"
 		}
@@ -722,7 +719,7 @@ func (s *Server) handleAPIServices(w http.ResponseWriter, r *http.Request) {
 		if svc.UseTLS {
 			scheme = "https"
 		}
-		resp, err := client.Get(fmt.Sprintf("%s://%s:%d", scheme, targetHost, svc.Port))
+		resp, err := client.Get(fmt.Sprintf("%s://%s:%d", scheme, targetHost, svc.Address.Port))
 		if err != nil {
 			swh.StatusText = "offline"
 		} else {
@@ -1238,7 +1235,7 @@ const dashboardHTML = `<!DOCTYPE html>
                         <td>
                             <span class="status-badge ok" data-name="{{.Name}}">HTTP</span>
                         </td>
-                        <td>{{.Port}}</td>
+                        <td>{{.Address.Port}}</td>
                         <td>{{.PID}}</td>
                         <td><pre class="command">{{.ExePath}}</pre></td>
                         <td>

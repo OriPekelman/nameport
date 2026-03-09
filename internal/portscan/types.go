@@ -3,9 +3,14 @@ package portscan
 
 // Listener represents a process listening on a port
 type Listener struct {
-	Port    int
+	Address Address
 	PID     int
 	ExePath string
 	Cwd     string // Current working directory
 	Args    []string
+}
+
+type Address struct {
+	Host string
+	Port int
 }

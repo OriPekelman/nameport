@@ -33,7 +33,7 @@ func (p Protocol) String() string {
 // IsHTTP checks if the service on the given host:port speaks HTTP
 // Sends a simple GET request and checks for HTTP response
 func IsHTTP(host string, port int) bool {
-	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	addr := net.JoinHostPort(strings.Trim(host, "[]"), strconv.Itoa(port))
 
 	// Try to connect with timeout
 	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)

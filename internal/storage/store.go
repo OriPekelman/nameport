@@ -6,31 +6,32 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"nameport/internal/portscan"
 )
 
 // ServiceRecord represents a persisted service mapping
 type ServiceRecord struct {
-	ID          string    `json:"id"`                    // Hash of exe+args
-	Name        string    `json:"name"`                  // Assigned DNS name
-	Port        int       `json:"port"`                  // Current port
-	TargetHost  string    `json:"target_host,omitempty"` // Target IP/host (default: 127.0.0.1)
-	PID         int       `json:"pid"`                   // Current PID
-	ExePath     string    `json:"exe_path"`              // Real path to executable
-	Args        []string  `json:"args"`                  // Command line arguments
-	UserDefined bool      `json:"user_defined"`          // Whether name was manually set
-	IsActive    bool      `json:"is_active"`             // Whether service is currently running
-	LastSeen    time.Time `json:"last_seen"`             // Last time service was detected
-	Keep        bool      `json:"keep"`                  // Whether to keep even when inactive
-	Group       string    `json:"group,omitempty"`       // Service group (e.g. "ollama" for ollama.localhost and ollama-1.localhost)
-	UseTLS      bool      `json:"use_tls,omitempty"`     // Whether backend uses TLS/HTTPS
+	ID          string           `json:"id"`                // Hash of exe+args
+	Name        string           `json:"name"`              // Assigned DNS name
+	Address     portscan.Address `json:"address"`           // Current host+port
+	PID         int              `json:"pid"`               // Current PID
+	ExePath     string           `json:"exe_path"`          // Real path to executable
+	Args        []string         `json:"args"`              // Command line arguments
+	UserDefined bool             `json:"user_defined"`      // Whether name was manually set
+	IsActive    bool             `json:"is_active"`         // Whether service is currently running
+	LastSeen    time.Time        `json:"last_seen"`         // Last time service was detected
+	Keep        bool             `json:"keep"`              // Whether to keep even when inactive
+	Group       string           `json:"group,omitempty"`   // Service group (e.g. "ollama" for ollama.localhost and ollama-1.localhost)
+	UseTLS      bool             `json:"use_tls,omitempty"` // Whether backend uses TLS/HTTPS
 }
 
 // EffectiveTargetHost returns the target host, defaulting to 127.0.0.1
 func (r *ServiceRecord) EffectiveTargetHost() string {
-	if r.TargetHost == "" {
+	if r.Address.Host == "" {
 		return "127.0.0.1"
 	}
-	return r.TargetHost
+	return r.Address.Host
 }
 
 // Store manages persistence of service name mappings
@@ -176,10 +177,12 @@ func (s *Store) AddManualService(name string, port int, targetHost string) (*Ser
 	}
 
 	record := &ServiceRecord{
-		ID:          id,
-		Name:        name,
-		Port:        port,
-		TargetHost:  targetHost,
+		ID:   id,
+		Name: name,
+		Address: portscan.Address{
+			Host: targetHost,
+			Port: port,
+		},
 		PID:         0,
 		ExePath:     "manual",
 		Args:        []string{},
