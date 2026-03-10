@@ -20,7 +20,7 @@
     "id": "python-script",
     "description": "Python running a script with a directory path",
     "priority": 20,
-    "exe_pattern": "(^|/)python[0-9]*$",
+    "exe_pattern": "(^|/)P|python[0-9]*$",
     "arg_pattern": "[/.].*[/\\\\]",
     "name_source": "arg",
     "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
