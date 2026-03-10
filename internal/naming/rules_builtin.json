@@ -1,5 +1,13 @@
 [
   {
+    "id": "app-bundle-bin",
+    "description": "macOS .app bundle with a bin folder",
+    "priority": 9,
+    "exe_pattern": "\\.app/Contents/.*/bin/",
+    "name_source": "exe",
+    "name_regex": "/bin/(.*?)$"
+  },
+  {
     "id": "app-bundle",
     "description": "macOS .app bundle: extract application name",
     "priority": 10,
