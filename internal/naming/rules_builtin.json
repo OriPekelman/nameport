@@ -123,7 +123,7 @@
     "id": "system-binary",
     "description": "System binary in /usr/bin, /bin, /sbin: use executable name",
     "priority": 90,
-    "exe_pattern": "^/(usr/)?(s?bin)/",
+    "exe_pattern": "^(/(usr/)?(s?bin)/)|(/System/Library/)",
     "name_source": "exe"
   },
   {
