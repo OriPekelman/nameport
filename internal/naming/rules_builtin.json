@@ -1,5 +1,13 @@
 [
   {
+    "id": "app-bundle-bin",
+    "description": "macOS .app bundle with a bin folder",
+    "priority": 9,
+    "exe_pattern": "\\.app/Contents/.*/bin/",
+    "name_source": "exe",
+    "name_regex": "/bin/(.*?)$"
+  },
+  {
     "id": "app-bundle",
     "description": "macOS .app bundle: extract application name",
     "priority": 10,
@@ -20,7 +28,7 @@
     "id": "python-script",
     "description": "Python running a script with a directory path",
     "priority": 20,
-    "exe_pattern": "(^|/)python[0-9]*$",
+    "exe_pattern": "(^|/)P|python[0-9]*$",
     "arg_pattern": "[/.].*[/\\\\]",
     "name_source": "arg",
     "name_regex": "([^/\\\\]+)[/\\\\][^/\\\\]+$"
@@ -123,7 +131,7 @@
     "id": "system-binary",
     "description": "System binary in /usr/bin, /bin, /sbin: use executable name",
     "priority": 90,
-    "exe_pattern": "^/(usr/)?(s?bin)/",
+    "exe_pattern": "^(/(usr/)?(s?bin)/)|(/System/Library/)",
     "name_source": "exe"
   },
   {
