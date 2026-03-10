@@ -111,23 +111,17 @@ func getProcessInfo(pid int) (string, string, []string, error) {
 		return "", "", nil, fmt.Errorf("lsof failed for pid %d: %w", pid, err)
 	}
 
-	var exePath, cwd string
+	var cwd string
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "c") {
-			// This is the text file (executable)
-			exePath = line[1:] // Remove 'n' prefix
-		} else if strings.HasPrefix(line, "n") {
+		if strings.HasPrefix(line, "n") {
 			// This is the current working directory
 			cwd = line[1:] // Remove 'n' prefix
 		}
 	}
 
-	if exePath == "" {
-		// Fallback: try using ps to get command
-		exePath = getCommandFromPS(pid)
-	}
+	exePath := getCommandFromPS(pid)
 
 	// Get command line arguments using ps
 	args := getCommandLine(pid)
