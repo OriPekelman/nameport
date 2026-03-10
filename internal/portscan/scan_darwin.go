@@ -105,7 +105,7 @@ func parsePort(addr string) int {
 func getProcessInfo(pid int) (string, string, []string, error) {
 	// Use lsof to get executable path and cwd
 	// lsof -p <pid> -F n
-	cmd := exec.Command("lsof", "-p", strconv.Itoa(pid), "-F", "n")
+	cmd := exec.Command("lsof", "-a", "-d", "cwd", "-p", strconv.Itoa(pid), "-F", "cn", "+c0")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", "", nil, fmt.Errorf("lsof failed for pid %d: %w", pid, err)
@@ -115,12 +115,12 @@ func getProcessInfo(pid int) (string, string, []string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "ntxt") {
+		if strings.HasPrefix(line, "c") {
 			// This is the text file (executable)
-			exePath = line[4:] // Remove 'ntxt' prefix
-		} else if strings.HasPrefix(line, "ncwd") {
+			exePath = line[1:] // Remove 'n' prefix
+		} else if strings.HasPrefix(line, "n") {
 			// This is the current working directory
-			cwd = line[4:] // Remove 'ncwd' prefix
+			cwd = line[1:] // Remove 'n' prefix
 		}
 	}
 
